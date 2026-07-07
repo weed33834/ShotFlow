@@ -39,7 +39,7 @@ known_first_party = ["common"]
 
 [tool.ruff]
 line-length = 100
-target-version = "0.0.1"
+target-version = "py312"
 
 [tool.ruff.lint]
 # 使用 ruff 默认规则集（E4/E7/E9 + F）。
