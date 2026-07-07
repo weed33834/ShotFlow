@@ -1,0 +1,16 @@
+# ShotFlow — 运行时依赖
+# 安装: pip install -r requirements.txt
+# 开发依赖（black/isort/pytest）见 requirements-dev.txt
+#
+# 说明：
+# - torch 建议通过 deploy_comfyui.sh 或 PyTorch 官网按 CUDA 版本安装，不在此固定版本
+# - opencv-python / Pillow / numpy 用于视频质量检测与帧分析
+# - daily_brief.py 复用 backend 的 app 包，需要 SQLAlchemy（与 backend/requirements.txt 对齐）
+
+requests>=2.34.2
+Pillow>=10.4.0
+opencv-python>=4.13.0.92
+numpy>=1.26.4
+# 与 backend/requirements.txt 保持版本对齐（daily_brief.py 复用 backend 的 app 包）
+SQLAlchemy==2.0.51
+# torch>=2.1.0  # 请按 CUDA 版本单独安装：https://pytorch.org

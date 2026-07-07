@@ -1,0 +1,75 @@
+{
+  "_meta": {
+    "project": "ShotFlow",
+    "workflow_name": "Wan22_Dual_Expert_Video",
+    "description": "Wan2.2 I2V 14B High/Low Noise 双专家视频生成工作流模板",
+    "status": "TEMPLATE — 需在 ComfyUI 中搭建后替换为实际节点 JSON",
+    "version": "0.1",
+    "last_updated": "2026-06-23",
+    "author": "AI Production Team"
+  },
+  "recommended_nodes": [
+    {
+      "node": "LoadImage",
+      "purpose": "加载首帧关键帧"
+    },
+    {
+      "node": "LoadWanVideoModel",
+      "purpose": "加载 Wan2.2-I2V-A14B 模型",
+      "high_noise_model": "ComfyUI/models/diffusion_models/wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors",
+      "low_noise_model": "ComfyUI/models/diffusion_models/wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors"
+    },
+    {
+      "node": "LoadWanVideoVAE",
+      "purpose": "加载 Wan2.2 VAE",
+      "model_path": "ComfyUI/models/vae/wan2.2_vae.safetensors"
+    },
+    {
+      "node": "LoadCLIP",
+      "purpose": "加载文本编码器",
+      "model_path": "ComfyUI/models/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors"
+    },
+    {
+      "node": "CLIPTextEncode",
+      "purpose": "视频运动提示词",
+      "prompt_template": "Ava walking cautiously through ruined futuristic corridor, amber eyes scanning environment, subtle head movement, dust particles floating in cinematic sci-fi lighting, teal and orange color grade, 24fps, smooth camera follow"
+    },
+    {
+      "node": "WanVideoSampler",
+      "purpose": "视频采样",
+      "parameters": {
+        "seed": -1,
+        "steps": 30,
+        "cfg": 0.5,
+        "denoise": 0.7,
+        "frames": 120,
+        "fps": 24,
+        "resolution": "720p"
+      }
+    },
+    {
+      "node": "VideoCombine",
+      "purpose": "合并帧为 MP4/GIF",
+      "filename_prefix": "SF_Shot_"
+    }
+  ],
+  "dual_expert_strategy": {
+    "step_1_high_noise": "先生成 High Noise 版本，获取大幅运动与整体构图。",
+    "step_2_review": "检查闪烁、崩坏、面部变形等问题帧。",
+    "step_3_low_noise_repair": "对问题片段使用 Low Noise Expert 重新生成，保留构图修复细节。",
+    "step_4_interpolation": "必要时使用帧插值（RIFE/FILM）提升流畅度。"
+  },
+  "parameters": {
+    "resolution": "720p",
+    "fps": 24,
+    "duration_seconds": 5,
+    "fp8": true,
+    "offload": true
+  },
+  "notes": [
+    "Wan2.2 14B 原生需约 60GB VRAM，必须使用 FP8 量化并在 RTX 4090 上启用 offload。",
+    "CFG 建议 0.5–1.0，过高会导致画面僵硬。",
+    "Denoise 建议 0.6–0.8，过高会偏离首帧。",
+    "复杂运动镜头建议改用可灵 2.5 Turbo 首尾帧约束。"
+  ]
+}

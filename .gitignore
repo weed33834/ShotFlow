@@ -1,0 +1,132 @@
+# ===========================
+# ShotFlow .gitignore
+# ===========================
+
+# --- 视频文件（体积过大，走网盘管理）---
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+*.flv
+*.wmv
+*.m4v
+*.mpg
+*.mpeg
+*.3gp
+
+# --- 模型文件（体积过大，走网盘管理）---
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.bin
+*.gguf
+*.onnx
+
+# --- 大型工程文件 ---
+*.drp
+*.drt
+*.aep
+*.aepx
+*.prproj
+*.fcpxml
+
+# --- 临时与缓存文件 ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+.pytest_cache/
+
+# --- ComfyUI 输出缓存（仅根目录级别） ---
+/output/
+/temp/
+06_Research/_temp_frames/
+*.tmp
+
+# --- 自动生成的报告（运行脚本后产生，无需提交）---
+06_Research/asset_dashboard.md
+06_Research/preflight_report.md
+06_Research/video_quality_report.md
+06_Research/benchmark_results.md
+07_Team/daily_briefs/*.md
+
+# --- 系统文件 ---
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+
+# --- IDE ---
+.vscode/
+.idea/
+*.code-workspace
+
+# --- 环境变量与密钥 ---
+.env
+.env.local
+*.key
+*.pem
+secrets.json
+credentials.json
+.env.*
+!.env.example
+.envrc
+.npmrc
+.pypirc
+.netrc
+*.p12
+*.pfx
+*.keystore
+*.jks
+id_rsa
+id_ed25519
+id_dsa
+*.token
+.ruff_cache/
+
+# --- 虚拟环境 ---
+venv/
+.venv/
+env/
+ENV/
+
+# --- Web 平台 ---
+# SQLite 开发数据库
+backend/*.db
+backend/shotflow.db
+backend/test.db
+test_shotflow.db
+*.db-journal
+# 前端依赖与构建产物
+node_modules/
+frontend/dist/
+frontend/.vite/
+# Alembic 版本缓存
+backend/alembic/__pycache__/
+
+# --- 日志 ---
+*.log
+logs/
+
+# --- 大型音频文件（保留小型 wav/mp3，排除大型）---
+# 注：配音和音效 wav/mp3 通过 LFS 管理，此处不排除
+# 如需排除大型音频，取消注释以下行：
+# *.flac
+# *.aiff
+
+# --- Topaz / AE 渲染缓存 ---
+*.tif
+*.tiff
+*.exr
+*.dpx
+
+# 注：小型参考图、缩略图、音频示例通过 .gitattributes LFS 管理，此处无需取反规则

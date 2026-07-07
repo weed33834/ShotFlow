@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "shotflow"
+version = "0.0.1"
+description = "An industrial-grade AIGC video production pipeline template."
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "ShotFlow Team"},
+]
+requires-python = ">=3.12"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Creative Industry",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Video",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.urls]
+Homepage = "https://github.com/MS33834/ShotFlow"
+Repository = "https://github.com/MS33834/ShotFlow"
+Issues = "https://github.com/MS33834/ShotFlow/issues"
+
+[tool.black]
+line-length = 100
+target-version = ['py312']
+
+[tool.isort]
+profile = "black"
+line_length = 100
+known_first_party = ["common"]
+
+[tool.ruff]
+line-length = 100
+target-version = "0.0.1"
+
+[tool.ruff.lint]
+# 使用 ruff 默认规则集（E4/E7/E9 + F）。
+# E501（行过长）由 black 负责，不在 ruff 范围内，避免双工具冲突。
+# I (isort) 同理由 isort 工具单独覆盖。
+
+[tool.ruff.lint.per-file-ignores]
+# SQLAlchemy 字符串前向引用（"Project" / "Shot" 等）ruff 无法跨模块解析，为误报
+"backend/app/models/*.py" = ["F821"]
+# 测试文件需要先 sys.path.insert 再导入被测模块
+"tests/*.py" = ["E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

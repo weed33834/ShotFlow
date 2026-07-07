@@ -1,0 +1,8 @@
+# ShotFlow — 开发依赖
+# 安装: pip install -r 08_Automation/requirements-dev.txt
+
+-r requirements.txt
+black>=24.10.0
+isort>=5.13.2
+pytest>=8.4.2
+ruff>=0.15.20

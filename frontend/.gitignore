@@ -1,0 +1,11 @@
+node_modules
+dist
+dist-ssr
+*.local
+.vite
+.DS_Store
+
+# tsc 构建产物（使用 --noEmit，不应生成）
+vite.config.js
+vite.config.d.ts
+*.tsbuildinfo

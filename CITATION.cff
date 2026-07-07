@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use ShotFlow in your work, please cite it as below."
+title: "ShotFlow"
+abstract: >-
+  A reproducible AIGC short-film pipeline — from a one-line idea to a 4K master.
+  ComfyUI workflows, automation scripts, a worked 24-shot case study, and a
+  FastAPI + React web platform with a no-GPU simulate mode.
+authors:
+  - family-names: "ShotFlow"
+    given-names: "Contributors"
+repository-code: "https://github.com/MS33834/ShotFlow"
+url: "https://github.com/MS33834/ShotFlow"
+license: "MIT"
+version: "0.2.0"
+date-released: "2026-07-04"
+keywords:
+  - AIGC
+  - ai-video
+  - comfyui
+  - wan2.2
+  - flux
+  - short-film
+  - pipeline
+  - fastapi
+  - react

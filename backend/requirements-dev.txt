@@ -1,0 +1,14 @@
+# ShotFlow — 后端开发依赖
+# 安装: pip install -r backend/requirements-dev.txt
+
+-r requirements.txt
+
+# 测试
+pytest>=8.4.2
+pytest-asyncio>=0.26.0
+httpx>=0.27.0
+
+# Lint / 格式化
+ruff>=0.15.20
+black>=24.10.0
+isort>=5.13.2

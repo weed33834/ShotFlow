@@ -1,0 +1,127 @@
+# ShotFlow — 全栈编排
+# 启动: docker compose up -d
+# 数据库会在 backend 容器首次启动时自动建表并写入种子数据，无需手动初始化。
+#
+# 如需在容器内运行 ComfyUI（GPU 任务），请准备独立 GPU 主机并配置
+# NVIDIA Container Toolkit，本编排默认不含 ComfyUI 服务。
+#
+# 生产部署前必须覆盖 SECRET_KEY（见 backend 服务），建议通过 .env 文件注入。
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: shotflow-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-shotflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请在 .env 中设置 POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-shotflow}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-shotflow}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: shotflow-redis
+    command: redis-server --requirepass ${REDIS_PASSWORD:?请在 .env 中设置 REDIS_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:?请在 .env 中设置 REDIS_PASSWORD} ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: shotflow-backend
+    # 先建表写种子数据再起服务；init_db.py 用 create_all 幂等，重复启动不会重复建表或重复建用户
+    command: sh -c "python init_db.py --seed && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    environment:
+      - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER:-shotflow}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-shotflow}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:?请在 .env 中设置 REDIS_PASSWORD}@redis:6379/0
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD:?请在 .env 中设置 REDIS_PASSWORD}@redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD:?请在 .env 中设置 REDIS_PASSWORD}@redis:6379/2
+      # 必须在 .env 里设置 SECRET_KEY，否则后端会因仍是公开默认值而拒绝启动
+      # 生成: openssl rand -hex 32
+      - SECRET_KEY=${SECRET_KEY:?请在 .env 中设置 SECRET_KEY，可用 openssl rand -hex 32 生成}
+      - DEBUG=false
+      - SIMULATE_MODE=true
+      # 外部 API 密钥：可取消下行注释并填入，或通过 .env 文件加载
+      # - KLING_API_KEY=...
+      # - ELEVENLABS_API_KEY=...
+      # - SUNO_API_KEY=...
+      # - COMFYUI_URL=http://host.docker.internal:8188
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: shotflow-worker
+    working_dir: /app/backend
+    # --beat 让 worker 同时承担定时调度：每 60 秒跑一次 queue.recover 恢复崩溃遗留的 running 任务
+    command: celery -A app.tasks.celery_app worker --beat --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER:-shotflow}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-shotflow}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:?请在 .env 中设置 REDIS_PASSWORD}@redis:6379/0
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD:?请在 .env 中设置 REDIS_PASSWORD}@redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD:?请在 .env 中设置 REDIS_PASSWORD}@redis:6379/2
+      - SECRET_KEY=${SECRET_KEY:?请在 .env 中设置 SECRET_KEY，可用 openssl rand -hex 32 生成}
+      - SIMULATE_MODE=true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # worker 跑 celery 而非 uvicorn，不能用 backend Dockerfile 里的 HTTP 健康检查；
+    # 改用 celery inspect ping 探活，找不到本机 worker 即视为不健康。
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.tasks.celery_app inspect ping -d celery@$$HOSTNAME -t 5 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    volumes:
+      - .:/app
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: shotflow-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    # nginx 服务探活：检查 nginx 主进程存活 + HTTP 200
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

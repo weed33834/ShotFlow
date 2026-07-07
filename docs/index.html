@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="title">ShotFlow — Script in, 4K master out</title>
+<meta name="description" content="A reproducible AIGC short-film pipeline. From script to 4K master, every parameter logged." data-i18n="meta_description">
+<meta name="theme-color" content="#0a0c10">
+<link rel="canonical" href="https://ms33834.github.io/ShotFlow/">
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://ms33834.github.io/ShotFlow/">
+<meta property="og:title" content="ShotFlow — Script in, 4K master out">
+<meta property="og:description" content="A reproducible AIGC short-film pipeline. From script to 4K master, every parameter logged.">
+<meta property="og:image" content="https://ms33834.github.io/ShotFlow/assets/og-image.jpg">
+<meta property="og:site_name" content="ShotFlow">
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="ShotFlow — Script in, 4K master out">
+<meta name="twitter:description" content="A reproducible AIGC short-film pipeline. From script to 4K master, every parameter logged.">
+<meta name="twitter:image" content="https://ms33834.github.io/ShotFlow/assets/og-image.jpg">
+<link rel="stylesheet" href="./assets/style.css?v=4">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,600;0,700;1,500&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%230a0c10'/><text x='50' y='65' font-size='60' text-anchor='middle' fill='%23f59e0b' font-family='Inter,sans-serif' font-weight='800'>S</text></svg>">
+</head>
+<body>
+<a href="#pipeline" class="skip-link" data-i18n="skip_to_content">Skip to content</a>
+
+<!-- Navigation -->
+<nav class="nav" id="nav">
+  <div class="nav-inner">
+    <a href="#" class="nav-logo">
+      <span class="logo-mark">S</span>
+      <span class="logo-text">Shot<span class="accent">Flow</span></span>
+    </a>
+    <div class="nav-links">
+      <a href="#pipeline" data-i18n="nav_pipeline">Pipeline</a>
+      <a href="#quickstart" data-i18n="nav_quickstart">Quick Start</a>
+      <a href="#platform" data-i18n="nav_platform">Platform</a>
+      <a href="#film" data-i18n="nav_film">The Film</a>
+      <a href="#docs" data-i18n="nav_docs">Docs</a>
+    </div>
+    <div class="nav-actions">
+      <button class="lang-toggle" id="langToggle" aria-label="Toggle language">
+        <span class="lang-option active" data-lang-code="en">EN</span>
+        <span class="lang-divider">/</span>
+        <span class="lang-option" data-lang-code="zh">中文</span>
+      </button>
+      <a href="https://github.com/MS33834/ShotFlow" target="_blank" rel="noopener" class="nav-gh" data-i18n="nav_github">GitHub ↗</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-bg">
+    <div class="hero-glow hero-glow--warm"></div>
+    <div class="hero-glow hero-glow--teal"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-grain"></div>
+  </div>
+  <div class="container hero-content">
+    <div class="hero-badge" data-i18n="hero_badge">AIGC Short-Film Pipeline</div>
+    <h1 class="hero-title" data-i18n="hero_title">Shot<span class="accent">Flow</span></h1>
+    <p class="hero-tagline" data-i18n="hero_tagline">Script in, 4K master out.</p>
+    <p class="hero-desc" data-i18n="hero_desc">A reproducible AIGC short-film pipeline. Twenty-four shots, twenty-nine keyframes, one 4K master — every parameter logged, every take reproducible.</p>
+    <div class="hero-cta">
+      <a href="https://github.com/MS33834/ShotFlow" target="_blank" rel="noopener" class="btn btn-primary" data-i18n="hero_cta_primary">
+        View on GitHub
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17l9.2-9.2M17 17V7H7"/></svg>
+      </a>
+      <a href="https://gitcode.com/badhope/ShotFlow" target="_blank" rel="noopener" class="btn btn-secondary" data-i18n="hero_cta_secondary">GitCode Mirror</a>
+      <a href="#quickstart" class="btn btn-ghost" data-i18n="hero_cta_tertiary">Quick Start ↓</a>
+    </div>
+    <div class="hero-stats">
+      <div class="stat">
+        <span class="stat-num">24</span>
+        <span class="stat-label" data-i18n="stat_shots">shots</span>
+      </div>
+      <div class="stat">
+        <span class="stat-num">29</span>
+        <span class="stat-label" data-i18n="stat_keyframes">keyframes</span>
+      </div>
+      <div class="stat">
+        <span class="stat-num">162</span>
+        <span class="stat-label" data-i18n="stat_tests">tests</span>
+      </div>
+      <div class="stat">
+        <span class="stat-num">4K</span>
+        <span class="stat-label" data-i18n="stat_master">master</span>
+      </div>
+    </div>
+  </div>
+  <div class="hero-scroll">
+    <span data-i18n="scroll_hint">Scroll to explore</span>
+    <div class="scroll-line"></div>
+  </div>
+</section>
+
+<!-- Problems -->
+<section class="section section-dark" id="problems">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-num">01</span>
+      <h2 class="section-title" data-i18n="prob_title">What this solves</h2>
+      <p class="section-sub" data-i18n="prob_sub">The walls every AIGC short film hits, every single time.</p>
+    </div>
+    <div class="problems-grid">
+      <div class="problem-card">
+        <div class="problem-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 8l8 8M16 8l-8 8"/></svg>
+        </div>
+        <h3 data-i18n="prob1_title">Character drift</h3>
+        <p data-i18n="prob1_desc">The same character looks like a different person in every shot. Reference images drift, anchors slip, faces re-roll.</p>
+      </div>
+      <div class="problem-card">
+        <div class="problem-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        </div>
+        <h3 data-i18n="prob2_title">Motion artifacts</h3>
+        <p data-i18n="prob2_desc">Footage flickers, warps, and moves in ways nothing should move. Hands fuse, edges breathe, physics walks off the set.</p>
+      </div>
+      <div class="problem-card">
+        <div class="problem-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+        <h3 data-i18n="prob3_title">Prompt drift</h3>
+        <p data-i18n="prob3_desc">The prompt and the storyboard drift apart, and the gap only shows up in the edit bay — when half the shots are already rendered.</p>
+      </div>
+      <div class="problem-card">
+        <div class="problem-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        </div>
+        <h3 data-i18n="prob4_title">Lost parameters</h3>
+        <p data-i18n="prob4_desc">Parameters vanish between sessions. The one good take can never be rerun, because nobody remembers what produced it.</p>
+      </div>
+      <div class="problem-card">
+        <div class="problem-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+        </div>
+        <h3 data-i18n="prob5_title">File chaos</h3>
+        <p data-i18n="prob5_desc">Files get renamed, overwritten, lost. A small team burns more time hunting assets than making them.</p>
+      </div>
+      <div class="problem-card problem-card--resolve">
+        <div class="resolve-line"></div>
+        <h3 data-i18n="resolve_title">ShotFlow ties it together</h3>
+        <p data-i18n="resolve_desc">One pipeline so a result is reproducible and a team can actually collaborate. Template, not product — swap in a story and go.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Pipeline -->
+<section class="section" id="pipeline">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-num">02</span>
+      <h2 class="section-title" data-i18n="pipe_title">The pipeline</h2>
+      <p class="section-sub" data-i18n="pipe_sub">Six stages, one parameter chain, one master.</p>
+    </div>
+    <div class="pipeline-flow">
+      <div class="stage-card" data-stage="1">
+        <div class="stage-num">01</div>
+        <h3 data-i18n="stage1_title">Script &amp; World</h3>
+        <p data-i18n="stage1_desc">DeepSeek / Claude. Script, worldbuilding, character bible.</p>
+        <code>02_Scripts/</code>
+      </div>
+      <div class="pipeline-connector"></div>
+      <div class="stage-card" data-stage="2">
+        <div class="stage-num">02</div>
+        <h3 data-i18n="stage2_title">Keyframes</h3>
+        <p data-i18n="stage2_desc">Flux.1 Kontext + IPAdapter. 29 reference frames, character stays on-model.</p>
+        <code>batch_keyframe_gen.py</code>
+      </div>
+      <div class="pipeline-connector"></div>
+      <div class="stage-card" data-stage="3">
+        <div class="stage-num">03</div>
+        <h3 data-i18n="stage3_title">Standard Shots</h3>
+        <p data-i18n="stage3_desc">Wan2.2 I2V 14B. 19 image-to-video clips for dialogue and close-ups.</p>
+        <code>storyboard_to_video.py</code>
+      </div>
+      <div class="pipeline-connector"></div>
+      <div class="stage-card" data-stage="4">
+        <div class="stage-num">04</div>
+        <h3 data-i18n="stage4_title">Complex Shots</h3>
+        <p data-i18n="stage4_desc">Kling 2.5 Turbo. 5 keyframe-to-keyframe shots for movement and transitions.</p>
+        <code>kling_video_api.py</code>
+      </div>
+      <div class="pipeline-connector"></div>
+      <div class="stage-card" data-stage="5">
+        <div class="stage-num">05</div>
+        <h3 data-i18n="stage5_title">Audio</h3>
+        <p data-i18n="stage5_desc">ElevenLabs dialogue + Suno score. Per-character voice bibles, full cue sheet.</p>
+        <code>elevenlabs_tts_api.py</code>
+      </div>
+      <div class="pipeline-connector"></div>
+      <div class="stage-card" data-stage="6">
+        <div class="stage-num">06</div>
+        <h3 data-i18n="stage6_title">Post &amp; Delivery</h3>
+        <p data-i18n="stage6_desc">DaVinci edit + Teal&amp;Orange grade + Topaz 4K upscale. 4K master out.</p>
+        <code>05_Output/Final/</code>
+      </div>
+    </div>
+    <p class="section-foot">
+      <span data-i18n="pipe_foot">The full chain, with the reasoning behind each choice, is in</span>
+      <a href="https://github.com/MS33834/ShotFlow/blob/main/AIGC_Experience_Chain.md" target="_blank" rel="noopener">AIGC_Experience_Chain.md</a>.
+    </p>
+  </div>
+</section>
+
+<!-- Quick start -->
+<section class="section section-dark" id="quickstart">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-num">03</span>
+      <h2 class="section-title" data-i18n="qs_title">Quick start</h2>
+      <p class="section-sub" data-i18n="qs_sub">Two ways in. Docker to look, source to work.</p>
+    </div>
+    <div class="qs-container">
+      <div class="qs-tabs" role="tablist">
+        <button class="qs-tab qs-tab--active" data-tab="docker" role="tab" aria-selected="true">Docker</button>
+        <button class="qs-tab" data-tab="source" role="tab" aria-selected="false" data-i18n="qs_tab_source">Local Source</button>
+      </div>
+      <div class="qs-panel qs-panel--active" data-panel="docker">
+        <p class="qs-lede" data-i18n="qs_docker_lede">Fastest look. Backend, worker, Postgres, Redis in one command.</p>
+        <div class="code-block">
+          <div class="code-bar">
+            <div class="code-dots">
+              <span></span><span></span><span></span>
+            </div>
+            <span class="code-lang" data-i18n="qs_terminal">Terminal</span>
+          </div>
+<pre><code><span class="c"># clone</span>
+git clone https://github.com/MS33834/ShotFlow.git
+cd ShotFlow
+
+<span class="c"># up — Postgres + Redis + backend + Celery worker</span>
+docker compose up -d
+
+<span class="c"># API docs (Swagger)</span>
+open http://localhost:8000/docs</code></pre>
+        </div>
+        <p class="qs-note" data-i18n="qs_docker_note">ComfyUI and model weights aren't bundled (license + size). Pull them with <code>bash 08_Automation/deploy_comfyui.sh</code> on a GPU host.</p>
+      </div>
+      <div class="qs-panel" data-panel="source">
+        <p class="qs-lede" data-i18n="qs_source_lede">For actually making a film. Needs an NVIDIA GPU (RTX 4090 24GB recommended).</p>
+        <div class="code-block">
+          <div class="code-bar">
+            <div class="code-dots">
+              <span></span><span></span><span></span>
+            </div>
+            <span class="code-lang" data-i18n="qs_terminal">Terminal</span>
+          </div>
+<pre><code><span class="c"># clone</span>
+git clone https://github.com/MS33834/ShotFlow.git
+cd ShotFlow
+cp .env.example .env     <span class="c"># fill API keys</span>
+
+<span class="c"># ComfyUI + nodes</span>
+bash 08_Automation/deploy_comfyui.sh
+
+<span class="c"># deps + structure check</span>
+make setup
+make check
+
+<span class="c"># preview the pipeline without rendering</span>
+python 08_Automation/preflight_check.py --dry-run
+python 08_Automation/batch_keyframe_gen.py --dry-run
+python 08_Automation/storyboard_to_video.py --dry-run</code></pre>
+        </div>
+        <p class="qs-note" data-i18n="qs_source_note">Every generation script takes <code>--dry-run</code>. Run it first — it prints the full plan without calling ComfyUI or cloud APIs.</p>
+      </div>
+    </div>
+    <p class="section-foot">
+      <span data-i18n="qs_tutor_prompt">New here? The</span>
+      <a href="https://github.com/MS33834/ShotFlow/blob/main/docs/tutorial.md" target="_blank" rel="noopener" data-i18n="qs_tutor_link">step-by-step tutorial</a>
+      <span data-i18n="qs_tutor_suffix">walks from an empty repo to a 4K master, one command at a time.</span>
+    </p>
+  </div>
+</section>
+
+<!-- Web Platform -->
+<section class="section" id="platform">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-num">04</span>
+      <h2 class="section-title" data-i18n="plat_title">Web platform</h2>
+      <p class="section-sub" data-i18n="plat_sub">For team members who don't want a terminal.</p>
+    </div>
+    <div class="plat-grid">
+      <div class="plat-card">
+        <div class="plat-card-head">
+          <h3 data-i18n="plat_backend_title">Backend API</h3>
+          <span class="plat-tag plat-tag--teal">FastAPI</span>
+        </div>
+        <p data-i18n="plat_backend_desc">FastAPI + SQLAlchemy + Celery. SSE push for real-time queue status.</p>
+        <ul class="endpoint-list">
+          <li><code class="endpoint">POST /api/v1/queue</code> <span data-i18n="ep_submit">submit render</span></li>
+          <li><code class="endpoint">GET /api/v1/queue/stream/events</code> <span data-i18n="ep_sse">SSE live status</span></li>
+          <li><code class="endpoint">/api/v1/shots</code> <code class="endpoint">/keyframes</code> <code class="endpoint">/workflows</code></li>
+          <li><code class="endpoint">/api/v1/health</code> <span data-i18n="ep_health">DB + Redis</span></li>
+        </ul>
+        <p class="plat-foot" data-i18n="plat_backend_foot">Interactive docs at <code>/docs</code> (Swagger) and <code>/redoc</code>.</p>
+      </div>
+      <div class="plat-card">
+        <div class="plat-card-head">
+          <h3 data-i18n="plat_frontend_title">Frontend Console</h3>
+          <span class="plat-tag plat-tag--amber">React</span>
+        </div>
+        <p data-i18n="plat_frontend_desc">React 18 + Vite + Ant Design Pro. Eleven routes, end-to-end typed.</p>
+        <ul class="endpoint-list">
+          <li><code class="endpoint">/dashboard</code> <span data-i18n="route_dash">health + queue + projects</span></li>
+          <li><code class="endpoint">/queue</code> <span data-i18n="route_queue">SSE-driven render queue</span></li>
+          <li><code class="endpoint">/workflow-configs</code> <span data-i18n="route_wf">YAML params + provider scoring</span></li>
+          <li><code class="endpoint">/assets</code> <code class="endpoint">/audio</code> <code class="endpoint">/qa</code> <code class="endpoint">/case-studies</code></li>
+        </ul>
+        <p class="plat-foot"><code>cd frontend &amp;&amp; npm run dev</code> <span data-i18n="plat_frontend_foot">— proxies to :8000.</span></p>
+      </div>
+    </div>
+    <div class="simulate-note">
+      <div class="simulate-dot"></div>
+      <p><strong data-i18n="sim_title">Simulate mode</strong> <span data-i18n="sim_desc">is on by default — every service returns mock output, so the whole chain runs without a GPU. Flip <code>SIMULATE_MODE=false</code> on a GPU host to hit real backends.</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- The Film -->
+<section class="section section-dark" id="film">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-num">05</span>
+      <h2 class="section-title" data-i18n="film_title">The film that proves it</h2>
+      <p class="section-sub" data-i18n="film_sub">Echo of the Singularity — not a demo reel, a finished short.</p>
+    </div>
+    <div class="film-grid">
+      <div class="film-poster">
+        <div class="poster-inner">
+          <div class="poster-glow"></div>
+          <div class="poster-vignette"></div>
+          <div class="poster-content">
+            <span class="poster-label" data-i18n="poster_label">CASE STUDY</span>
+            <h3 class="poster-title-cn">奇点回响</h3>
+            <p class="poster-title-en">ECHO OF THE SINGULARITY</p>
+            <div class="poster-meta">
+              <span>3–5 min</span>
+              <span class="poster-dot"></span>
+              <span>4K</span>
+              <span class="poster-dot"></span>
+              <span>AIGC</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="film-body">
+        <p data-i18n="film_p1">A complete AIGC short film lives in the repo as a worked example. Script, character bible, 24-shot storyboard, 29 keyframes, 24 video clips, voice bibles, cue sheet, EDL, color notes, mix notes, asset manifest, subtitles, credits, delivery specs — every artifact a reviewer would expect from a finished short.</p>
+        <p data-i18n="film_p2">The rendered video files themselves are not committed (large, several use NC-licensed model outputs). The paperwork is the reference — run the pipeline end-to-end to populate the actual media, then follow <code>assembly_guide.md</code> to lock the master.</p>
+        <a href="https://github.com/MS33834/ShotFlow/tree/main/examples/echo-of-singularity" target="_blank" rel="noopener" class="btn btn-primary" data-i18n="film_cta">
+          Open the case study
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17l9.2-9.2M17 17V7H7"/></svg>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Docs -->
+<section class="section" id="docs">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-num">06</span>
+      <h2 class="section-title" data-i18n="docs_title">Read the manual</h2>
+      <p class="section-sub" data-i18n="docs_sub">Every doc is bilingual. English primary, Chinese sidecar.</p>
+    </div>
+    <div class="docs-grid">
+      <a class="doc-card" href="https://github.com/MS33834/ShotFlow/blob/main/docs/tutorial.md" target="_blank" rel="noopener">
+        <span class="doc-tag doc-tag--amber" data-i18n="doc_tag_tutorial">TUTORIAL</span>
+        <h4 data-i18n="doc_tutorial_title">Step-by-step Tutorial</h4>
+        <p data-i18n="doc_tutorial_desc">From empty repo to 4K master, one command at a time.</p>
+      </a>
+      <a class="doc-card" href="https://github.com/MS33834/ShotFlow/blob/main/AIGC_Experience_Chain.md" target="_blank" rel="noopener">
+        <span class="doc-tag doc-tag--teal" data-i18n="doc_tag_design">DESIGN</span>
+        <h4 data-i18n="doc_design_title">AIGC Experience Chain</h4>
+        <p data-i18n="doc_design_desc">End-to-end pipeline reasoning, stage by stage.</p>
+      </a>
+      <a class="doc-card" href="https://github.com/MS33834/ShotFlow/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">
+        <span class="doc-tag" data-i18n="doc_tag_contrib">CONTRIB</span>
+        <h4 data-i18n="doc_contrib_title">Contributing</h4>
+        <p data-i18n="doc_contrib_desc">Push rules, monthly health check, translation flow.</p>
+      </a>
+      <a class="doc-card" href="https://github.com/MS33834/ShotFlow/blob/main/TROUBLESHOOTING.md" target="_blank" rel="noopener">
+        <span class="doc-tag doc-tag--teal" data-i18n="doc_tag_ops">OPS</span>
+        <h4 data-i18n="doc_ops_title">Troubleshooting</h4>
+        <p data-i18n="doc_ops_desc">ComfyUI nodes, VRAM, model loaders, render queue.</p>
+      </a>
+      <a class="doc-card" href="https://github.com/MS33834/ShotFlow/blob/main/COST_ANALYSIS.md" target="_blank" rel="noopener">
+        <span class="doc-tag doc-tag--amber" data-i18n="doc_tag_budget">BUDGET</span>
+        <h4 data-i18n="doc_budget_title">Cost Analysis</h4>
+        <p data-i18n="doc_budget_desc">6-week budget, hardware, APIs, commercial upgrade path.</p>
+      </a>
+      <a class="doc-card" href="https://github.com/MS33834/ShotFlow/blob/main/docs/blog/architecture.md" target="_blank" rel="noopener">
+        <span class="doc-tag" data-i18n="doc_tag_blog">BLOG</span>
+        <h4 data-i18n="doc_blog_title">Architecture Notes</h4>
+        <p data-i18n="doc_blog_desc">Why the queue is state-machine, why YAML-driven workflows.</p>
+      </a>
+      <a class="doc-card" href="https://github.com/MS33834/ShotFlow/blob/main/SECURITY.md" target="_blank" rel="noopener">
+        <span class="doc-tag doc-tag--red" data-i18n="doc_tag_security">SECURITY</span>
+        <h4 data-i18n="doc_security_title">Security Policy</h4>
+        <p data-i18n="doc_security_desc">Supported versions, reporting a vulnerability.</p>
+      </a>
+      <a class="doc-card" href="https://github.com/MS33834/ShotFlow/blob/main/docs/i18n/README.md" target="_blank" rel="noopener">
+        <span class="doc-tag doc-tag--teal" data-i18n="doc_tag_i18n">I18N</span>
+        <h4 data-i18n="doc_i18n_title">Multilingual Index</h4>
+        <p data-i18n="doc_i18n_desc">Bilingual doc table, naming convention, translation flow.</p>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- Mirrors -->
+<section class="section mirrors-section">
+  <div class="container">
+    <div class="mirrors-grid">
+      <a href="https://github.com/MS33834/ShotFlow" target="_blank" rel="noopener" class="mirror-card">
+        <div class="mirror-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+        </div>
+        <div>
+          <h4>GitHub</h4>
+          <p>github.com/MS33834/ShotFlow</p>
+        </div>
+      </a>
+      <a href="https://gitcode.com/badhope/ShotFlow" target="_blank" rel="noopener" class="mirror-card">
+        <div class="mirror-icon mirror-icon--teal">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        </div>
+        <div>
+          <h4>GitCode</h4>
+          <p>gitcode.com/badhope/ShotFlow</p>
+        </div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a href="#" class="footer-logo">
+          <span class="logo-mark">S</span>
+          <span class="logo-text">Shot<span class="accent">Flow</span></span>
+        </a>
+        <p class="footer-tag" data-i18n="footer_tag">Script in, 4K master out.</p>
+      </div>
+      <div class="footer-col">
+        <h5 data-i18n="footer_repo">Repo</h5>
+        <a href="https://github.com/MS33834/ShotFlow" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://gitcode.com/badhope/ShotFlow" target="_blank" rel="noopener">GitCode</a>
+        <a href="https://github.com/MS33834/ShotFlow/issues" target="_blank" rel="noopener" data-i18n="footer_issues">Issues</a>
+        <a href="https://github.com/MS33834/ShotFlow/pulls" target="_blank" rel="noopener" data-i18n="footer_prs">Pull Requests</a>
+      </div>
+      <div class="footer-col">
+        <h5 data-i18n="footer_start">Start Here</h5>
+        <a href="https://github.com/MS33834/ShotFlow/blob/main/README.md" target="_blank" rel="noopener">README</a>
+        <a href="https://github.com/MS33834/ShotFlow/blob/main/docs/tutorial.md" target="_blank" rel="noopener" data-i18n="footer_tutorial">Tutorial</a>
+        <a href="#quickstart" data-i18n="footer_qs">Quick Start</a>
+        <a href="https://github.com/MS33834/ShotFlow/blob/main/docker-compose.yml" target="_blank" rel="noopener">docker-compose.yml</a>
+      </div>
+      <div class="footer-col">
+        <h5 data-i18n="footer_license_h">License</h5>
+        <a href="https://github.com/MS33834/ShotFlow/blob/main/LICENSE" target="_blank" rel="noopener">MIT</a>
+        <p class="footer-license-note" data-i18n="footer_license_note">Free to use, modify, and distribute. See LICENSE for details.</p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span data-i18n="footer_credit">The example film <i>Echo of the Singularity</i> is case-study content. Built on ComfyUI / Flux.1 / Wan2.2 / FastAPI / React.</span>
+    </div>
+  </div>
+</footer>
+
+<script src="./assets/script.js?v=4" defer></script>
+</body>
+</html>
