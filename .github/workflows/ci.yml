@@ -109,10 +109,10 @@ jobs:
         run: python 08_Automation/project_health_check.py
 
   # ===== 文档链接校验 =====
-  continue-on-error: true
   docs-link-check:
     name: Documentation Links
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
