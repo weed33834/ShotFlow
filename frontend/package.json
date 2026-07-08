@@ -2,6 +2,7 @@
   "name": "shotflow-frontend",
   "private": true,
   "version": "0.2.0",
+  "license": "CNCL-1.0",
   "type": "module",
   "description": "ShotFlow — AIGC 视频流水线管理后台",
   "scripts": {
