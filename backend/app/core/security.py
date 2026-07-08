@@ -9,8 +9,9 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 import bcrypt
+import jwt
 from app.core.config import settings
-from jose import JWTError, jwt
+from jwt import PyJWTError
 
 # bcrypt 算法限制：密码最长 72 字节
 _BCRYPT_MAX_BYTES = 72
@@ -54,5 +55,5 @@ def decode_access_token(token: str) -> Optional[str]:
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
         return payload.get("sub")
-    except JWTError:
+    except PyJWTError:
         return None

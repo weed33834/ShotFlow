@@ -112,6 +112,8 @@ jobs:
   docs-link-check:
     name: Documentation Links
     runs-on: ubuntu-latest
+    # 102 个内部链接断链为 main 既有文档债（check_doc_links.py 实测 exit 1），
+    # 将在单独 PR 集中修复；此处保持 continue-on-error 非阻断，避免掩盖其余 job 的回归。
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4

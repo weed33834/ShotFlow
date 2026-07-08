@@ -25,8 +25,9 @@ email-validator>=2.3.0
 # 安全
 # 直接使用 bcrypt 库（passlib 1.7.x 与 bcrypt 4.x 存在兼容问题）
 bcrypt==4.3.0
-# 3.x security fixes
-python-jose[cryptography]==3.5.0
+# PyJWT 是 Python JWT 事实标准，维护活跃；python-jose 维护停滞且有历史
+# 算法混淆 CVE（CVE-2024-33663/33664/33665），改用 PyJWT 规避。
+PyJWT==2.10.1
 
 # 任务队列
 celery[redis]==5.6.3

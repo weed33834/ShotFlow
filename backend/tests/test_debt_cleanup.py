@@ -132,8 +132,8 @@ def test_jwt_contains_iat_claim():
     """JWT payload 应包含 iat（签发时间），支持改密后旧 token 失效。"""
     token = create_access_token("alice")
     # decode 不验签以读取 payload
+    import jwt as _jwt
     from app.core.config import settings
-    from jose import jwt as _jwt
 
     payload = _jwt.decode(
         token,

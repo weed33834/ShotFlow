@@ -9,7 +9,7 @@ scripts into a REST + SSE API with a render queue.
 - **SQLAlchemy 2.0** — ORM, Alembic migrations
 - **Celery + Redis** — render queue, async tasks
 - **PostgreSQL** (prod) / **SQLite** (dev/test) — switchable via `DATABASE_URL`
-- **JWT (python-jose) + bcrypt** — auth, RBAC (admin / director / art_director / algo_engineer / video_operator / post_lead / sound_designer / qa / ops / pm / member)
+- **JWT (PyJWT) + bcrypt** — auth, RBAC (admin / director / art_director / algo_engineer / video_operator / post_lead / sound_designer / qa / ops / pm / member)
 
 ## Layout
 

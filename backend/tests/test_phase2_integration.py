@@ -508,8 +508,8 @@ def test_rank_providers_sorted_desc_by_score():
 
     ranked = rank_providers(complexity="standard", has_gpu=True)
     names = [name for name, _ in ranked]
-    # 含全部 5 个 provider
-    assert set(names) == {"wan_i2v", "kling", "hunyuan_video", "ltx_video", "cogvideox"}
+    # cogvideox 是占位 adapter（enabled=False），被 rank_providers 过滤，候选仅 4 个
+    assert set(names) == {"wan_i2v", "kling", "hunyuan_video", "ltx_video"}
     # 降序：分数递减
     scores = [s for _, s in ranked]
     assert scores == sorted(scores, reverse=True)
@@ -523,6 +523,7 @@ def test_rank_providers_filters_local_when_no_gpu():
 
     ranked = rank_providers(has_gpu=False)
     names = [name for name, _ in ranked]
-    # 仅云端 provider（requires_gpu=False）
-    assert set(names) == {"kling", "cogvideox"}
+    # 仅云端且 enabled 的 provider：cogvideox 虽云端但 enabled=False（占位），被过滤
+    assert set(names) == {"kling"}
     assert "wan_i2v" not in names  # 本地，被过滤
+    assert "cogvideox" not in names  # 占位 adapter，被 enabled 过滤

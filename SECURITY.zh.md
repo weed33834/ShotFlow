@@ -50,6 +50,6 @@ ShotFlow 仍在积极开发中，仅对 `main` 分支的最新提交提供安全
 
 ## 已知安全相关设计
 
-- 认证：JWT（`python-jose` 3.4.0+，修复 CVE-2024-33663/33664/33665）
+- 认证：JWT（`PyJWT` 2.10+，取代维护停滞且有算法混淆 CVE 的 python-jose）
 - 密码哈希：`bcrypt`（避免 passlib 1.7.x 与 bcrypt 4.x 兼容问题）
 - RBAC：队列操作按角色（admin / director / algo_engineer / video_operator / ops / pm）鉴权（见 `backend/app/api/deps.py`）

@@ -199,7 +199,10 @@ def _dispatch(db, task) -> dict:
                         rec["reason"],
                     )
                 return result
-            except ProviderFailed as e:
+            except (ProviderFailed, NotImplementedError) as e:
+                # NotImplementedError: 占位 adapter（如未接入真实 API 的
+                # cogvideox）非 SIMULATE 路径抛出；视同该 provider 不可用，
+                # 继续尝试下一个候选，避免占位实现无回退地失败整条任务。
                 last_error = e
                 logger.warning(
                     "任务 %s provider %s 失败，尝试下一个候选",

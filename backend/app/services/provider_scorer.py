@@ -33,6 +33,9 @@ class ProviderProfile:
     supports_i2v: bool = True
     supports_t2v: bool = False
     requires_gpu: bool = True
+    # 占位/未实现真实 API 的 provider 设为 False，rank_providers 会跳过，
+    # 避免占位 adapter 进入候选队列导致生产任务无回退地失败。
+    enabled: bool = True
 
 
 # 内置 provider 画像（基于项目实践经验）
@@ -82,6 +85,11 @@ _PROVIDERS: dict[str, ProviderProfile] = {
         requires_gpu=True,
     ),
     # 云端 CogVideoX：无需本地 GPU（P6-A 新增）
+    # NOTE: CogVideoXAdapter 的非 SIMULATE 路径尚未接入真实 API（submit/poll/
+    # result 均 raise NotImplementedError）。设 enabled=False 使其不进入
+    # rank_providers 候选队列，避免无 GPU 生产环境首选 cogvideox 后抛
+    # NotImplementedError（非 ProviderFailed，不触发回退）导致任务直接失败。
+    # 待真实 API 接入后改回 enabled=True。
     "cogvideox": ProviderProfile(
         name="cogvideox",
         quality=8.0,
@@ -91,6 +99,7 @@ _PROVIDERS: dict[str, ProviderProfile] = {
         supports_i2v=True,
         supports_t2v=True,
         requires_gpu=False,  # 云端，无 GPU 环境也可用
+        enabled=False,  # 占位实现，未接入真实 API
     ),
 }
 
@@ -125,7 +134,7 @@ def rank_providers(
     供 Provider 失败回退使用：首选 provider 执行失败时，按此队列依次尝试次优。
     """
     weights = weights or ScoreWeights()
-    candidates = [p for p in _PROVIDERS.values() if has_gpu or not p.requires_gpu]
+    candidates = [p for p in _PROVIDERS.values() if p.enabled and (has_gpu or not p.requires_gpu)]
     scored = [(p.name, round(score_provider(p, weights), 2)) for p in candidates]
     scored.sort(key=lambda x: x[1], reverse=True)
     return scored
