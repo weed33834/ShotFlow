@@ -487,7 +487,7 @@ Cover and poster specs are in [`09_Release/poster_spec.md`](../09_Release/poster
 Two things you cannot skip:
 
 1. **AIGC disclosure.** Every platform the film ships on requires AIGC marking. Tick the platform box where there is one; otherwise put "AI-generated short film" as the first line of the description. For festival submissions, follow《生成式人工智能服务管理暂行办法》— prominent marking, and most festivals put AIGC work in a separate category.
-2. **License audit.** Before any commercial release (paid streaming, ad-share, brand work, paid competition), run through [`06_Research/licensing_compliance.md`](../06_Research/licensing_compliance.md). The repo itself is MIT-licensed; several components are also NC by default (Flux.1 Kontext [dev], Suno free tier, ElevenLabs free tier). The compliance doc lists every component, its license, the commercial boundary, and the cost to upgrade. The short version: Flux commercial license is the expensive one; the SaaS subscriptions (ElevenLabs Creator, Suno Pro, Topaz Pro) are cheap and unlock commercial rights.
+2. **License audit.** Before any commercial release (paid streaming, ad-share, brand work, paid competition), run through [`06_Research/licensing_compliance.md`](../06_Research/licensing_compliance.md). The repo itself is CNCL-licensed (non-commercial); several components are also NC by default (Flux.1 Kontext [dev], Suno free tier, ElevenLabs free tier). The compliance doc lists every component, its license, the commercial boundary, and the cost to upgrade. The short version: Flux commercial license is the expensive one; the SaaS subscriptions (ElevenLabs Creator, Suno Pro, Topaz Pro) are cheap and unlock commercial rights.
 
 ### 8.4 Final pre-release checks
 
@@ -499,7 +499,7 @@ Run through [`09_Release/release_checklist.md`](../09_Release/release_checklist.
 - [ ] AIGC box ticked / disclosure line present
 - [ ] Cover dimensions match platform spec
 - [ ] Open-source repo link in description
-- [ ] MIT license statement in description
+- [ ] CNCL license statement in description
 - [ ] `LICENSE.txt` shipped with the package
 
 ### 8.5 Deliverables from this step
@@ -638,7 +638,7 @@ You have shipped one film. The next moves:
 
 ### Contribute back
 
-The repo is MIT-licensed, and pull requests are welcome. See [`CONTRIBUTING.md`](../CONTRIBUTING.md) for the full rules; the highlights:
+The repo is CNCL-licensed (Custom Non-Commercial License), and pull requests are welcome. See [`CONTRIBUTING.md`](../CONTRIBUTING.md) for the full rules; the highlights:
 
 - Fork, branch off `main`, keep the existing directory layout and naming style.
 - New scripts must pass `preflight_check.py`'s basic checks.

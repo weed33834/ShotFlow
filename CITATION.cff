@@ -10,7 +10,7 @@ authors:
     given-names: "Contributors"
 repository-code: "https://github.com/MS33834/ShotFlow"
 url: "https://github.com/MS33834/ShotFlow"
-license: "MIT"
+license: "CNCL-1.0"
 version: "0.2.0"
 date-released: "2026-07-04"
 keywords:

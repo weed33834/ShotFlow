@@ -69,7 +69,7 @@ sample_rate: 48000
   [`05_Output/Final/credits.md`](../../05_Output/Final/credits.md) 中致谢
   freesound.org 社区。
 - **AudioLDM 输出**：AudioLDM 模型本身基于 CC-BY-NC-SA-4.0，生成内容
-  建议仅用于非商用场景。本仓库整体 MIT 协议一致。
+  建议仅用于非商用场景。本仓库整体 CNCL 协议一致。
 - 详细授权链路见 [`06_Research/licensing_compliance.md`](../../06_Research/licensing_compliance.md)。
 
 ---

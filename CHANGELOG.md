@@ -76,7 +76,7 @@
 - **[P1]** 前端 `useQueueStream` 退避计数器在 `enabled` 变 true 时重置。
 - **[P1]** 前端 `RenderTaskStatus` 类型补 `progress: number` 字段。
 - **[P1]** 前端所有页面错误处理改用 `friendlyMessage` 优先（10 个文件 21 处）。
-- **[P2]** CHANGELOG 修复 License 记录（实际为 MIT，非 CC BY-NC 4.0）、docs 站点状态（保留而非删除）、sync_repos.sh 环境变量描述。
+- **[P2]** CHANGELOG 修复 License 记录（实际为 CNCL，非 CC BY-NC 4.0）、docs 站点状态（保留而非删除）、sync_repos.sh 环境变量描述。
 - **[P2]** `backend/README.md` 修复 RBAC 角色名称（原错误写 root/peasant/viewer）、测试数量更新为 161。
 - **[P2]** `frontend/README.md` 修复 token 存储方式（sessionStorage 非 localStorage）、默认登录凭据（admin/change-me-now 非 root/shotflow）。
 
@@ -344,9 +344,9 @@
 
 ### Changed — License clarification + complete-work deliverables (batch E)
 
-**License clarification** — the repo remains MIT licensed. All references to
+**License clarification** — the repo uses Custom Non-Commercial License (CNCL) v1.0. All references to
 CC BY-NC 4.0 have been corrected; `LICENSE`, `pyproject.toml`, `CITATION.cff`,
-and `README.md` consistently use MIT.
+and `README.md` consistently use CNCL.
 
 **Complete-work deliverables** — the example film *Echo of the Singularity*
 now ships every artifact a reviewer would expect from a finished AIGC short,

@@ -1,3 +1,9 @@
+# ShotFlow — Dependabot configuration
+#
+# Project engineering is complete. Major version upgrades are ignored to avoid
+# breaking the verified build. If development restarts, remove the `ignore`
+# blocks below to resume normal update monitoring.
+
 version: 2
 updates:
   - package-ecosystem: "github-actions"
@@ -10,9 +16,12 @@ updates:
       - "github-actions"
     commit-message:
       prefix: "ci(deps)"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "npm"
-    directory: "/"
+    directory: "/frontend"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
@@ -21,6 +30,9 @@ updates:
       - "npm"
     commit-message:
       prefix: "deps"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       development:
         dependency-type: "development"
@@ -37,6 +49,9 @@ updates:
       - "pip"
     commit-message:
       prefix: "deps"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "docker"
     directory: "/"
@@ -48,3 +63,6 @@ updates:
       - "docker"
     commit-message:
       prefix: "deps"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]

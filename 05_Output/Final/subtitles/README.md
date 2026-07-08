@@ -72,5 +72,4 @@ re-translate rather than reusing these lines.
 ## License
 
 Subtitle files are part of the repository and fall under the same
-[MIT](../../../LICENSE) license. You may use, modify, and
-re-translate them freely, including for commercial purposes.
+[CNCL](../../../LICENSE) license. See the root LICENSE for terms.

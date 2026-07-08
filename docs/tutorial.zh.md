@@ -489,7 +489,7 @@ release_bilibili/
 两件事不能省：
 
 1. **AIGC 标识。** 影片发布的每个平台都要求 AIGC 标注。有勾选项的平台就勾；没有就把 "AI-generated short film"（或中文 "本片为 AIGC 生成内容"）放在描述首行。电影节投奖按《生成式人工智能服务管理暂行办法》显著标识——多数电影节把 AIGC 作品单独分类评审。
-2. **授权审计。** 任何商用发布（付费点播、广告分成、品牌合作、付费参赛）之前，过一遍 [`06_Research/licensing_compliance.md`](../06_Research/licensing_compliance.md)。仓库本身采用 MIT 协议；几个组件默认也是 NC（Flux.1 Kontext [dev]、Suno 免费版、ElevenLabs 免费版）。合规文档列了每个组件的许可、商用边界、升级费用。简版：Flux 商用授权是贵的那个；SaaS 订阅（ElevenLabs Creator、Suno Pro、Topaz Pro）便宜，订阅后即解锁商用权。
+2. **授权审计。** 任何商用发布（付费点播、广告分成、品牌合作、付费参赛）之前，过一遍 [`06_Research/licensing_compliance.md`](../06_Research/licensing_compliance.md)。仓库本身采用 CNCL（自定义非商业许可证）；几个组件默认也是 NC（Flux.1 Kontext [dev]、Suno 免费版、ElevenLabs 免费版）。合规文档列了每个组件的许可、商用边界、升级费用。简版：Flux 商用授权是贵的那个；SaaS 订阅（ElevenLabs Creator、Suno Pro、Topaz Pro）便宜，订阅后即解锁商用权。
 
 ### 8.4 发布前最终检查
 
@@ -501,7 +501,7 @@ release_bilibili/
 - [ ] 已勾选 AIGC 标识 / 已加标注行
 - [ ] 封面尺寸符合平台规格
 - [ ] 简介里已加开源仓库链接
-- [ ] 简介里已加 MIT 开源协议声明
+- [ ] 简介里已加 CNCL 许可证声明
 - [ ] `LICENSE.txt` 随包附送
 
 ### 8.5 本步产出物
@@ -640,7 +640,7 @@ API 端点（见 [`backend/app/api/v1/workflow_configs.py`](../backend/app/api/v
 
 ### 贡献回社区
 
-仓库采用 MIT 协议，欢迎 PR。完整规则见 [`CONTRIBUTING.md`](../CONTRIBUTING.md)；要点：
+仓库采用 CNCL（自定义非商业许可证），欢迎 PR。完整规则见 [`CONTRIBUTING.md`](../CONTRIBUTING.md)；要点：
 
 - Fork，从 `main` 切分支，保持现有目录结构和命名风格。
 - 新脚本必须过 `preflight_check.py` 的基础检查。

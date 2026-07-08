@@ -77,3 +77,38 @@ Before merging:
 - [ ] No deprecation warnings from dependencies
 - [ ] No security scan warnings (CodeQL, gitleaks)
 - [ ] CI pipeline is fully green (not just passing with warnings)
+
+## Codebase Cleanup Check
+
+Periodically (at least once per sprint), perform a thorough cleanup:
+
+### File Cleanup
+- [ ] Remove empty directories
+- [ ] Delete unused configuration files (e.g., old `.env.example` variants)
+- [ ] Remove duplicate version files (keep only one: `VERSION` or `pyproject.toml`)
+- [ ] Delete orphaned modules/scripts that are not imported or referenced
+- [ ] Remove unused template files (e.g., `*.template.json` if not referenced)
+
+### Configuration Cleanup
+- [ ] Remove irrelevant language configs from `.editorconfig` (e.g., Go in a Python project)
+- [ ] Remove unused package ecosystems from `dependabot.yml`
+- [ ] Verify all config files match the actual tech stack (Python + TypeScript/React + Docker)
+
+### Documentation Cleanup
+- [ ] Merge duplicate docs (e.g., same content in different files)
+- [ ] Delete outdated development plans (keep only one: `PROJECT_PLAN.md` or `ROADMAP.md`)
+- [ ] Ensure README Quick Start doesn't duplicate `QUICKSTART.md`
+- [ ] Update version numbers in all docs to match `VERSION` file
+- [ ] Verify license references in all docs match the actual LICENSE file (CNCL v1.0, not MIT)
+- [ ] Remove references to non-existent files or broken links
+
+### Test Cleanup
+- [ ] Identify and merge duplicate test files
+- [ ] Delete tests for removed features
+- [ ] Ensure all test files have actual test cases (no empty files)
+- [ ] Verify test counts mentioned in docs match actual test counts
+
+### Code Quality
+- [ ] Remove dead code (unreachable functions, unused imports)
+- [ ] Verify all API endpoints have corresponding tests
+- [ ] Check for hardcoded secrets or credentials

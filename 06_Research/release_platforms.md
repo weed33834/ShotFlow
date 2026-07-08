@@ -111,7 +111,7 @@
 | 项目 | 详情 |
 |------|------|
 | 账号准备 | GitHub 仓库 `MS33834/ShotFlow`（已上线）；GitCode 镜像 `badhope/ShotFlow` |
-| 内容形式 | ① ComfyUI 工作流 JSON（Flux 角色一致性 + Wan2.2 双专家视频）；② SOP 操作手册（Markdown）；③ README（含效果 GIF、依赖列表、快速开始）；④ 参数调优记录表；⑤ MIT License（开源，可商用） |
+| 内容形式 | ① ComfyUI 工作流 JSON（Flux 角色一致性 + Wan2.2 双专家视频）；② SOP 操作手册（Markdown）；③ README（含效果 GIF、依赖列表、快速开始）；④ 参数调优记录表；⑤ CNCL License（自定义非商业许可证） |
 | 发布时间 | 第 6 周周一与正片同步上线 |
 | 标签/关键词 | Topics：`comfyui` `aigc` `ai-video` `wan2.2` `flux` `sci-fi` `workflow` `sop` |
 | 预期效果 | Star ≥ 200；Fork ≥ 30；Issue/PR ≥ 10 |

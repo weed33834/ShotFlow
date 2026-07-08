@@ -1,7 +1,7 @@
 # Credits — *Echo of the Singularity*
 
 > Project: ShotFlow / *Echo of the Singularity* (example case study)
-> License: MIT — see repo root `LICENSE`
+> License: CNCL v1.0 — see repo root `LICENSE`
 > Date: 2026-07-04
 
 This is the credits roll for the example short film. End-card style:
@@ -100,10 +100,9 @@ ShotFlow — `https://github.com/MS33834/ShotFlow`
 ## License
 
 This film and all assets in this repository are licensed under
-**MIT License**.
+**Custom Non-Commercial License (CNCL) v1.0**.
 
-- Permission is hereby granted, free of charge, to use, copy, modify, merge,
-  publish, distribute, sublicense, and/or sell copies of the Software.
+- No rights to use, copy, modify, distribute, sublicense, or operate the software are granted without prior written permission from the author.
 
 Full text: [`LICENSE`](../../LICENSE)
 

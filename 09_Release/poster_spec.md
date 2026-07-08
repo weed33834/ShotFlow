@@ -2,7 +2,7 @@
 
 > 各发布平台封面与海报的视觉规格——发布前按本规格出图。
 > Project: ShotFlow / *Echo of the Singularity* (example)
-> License: MIT
+> License: CNCL v1.0
 
 封面是点击率的决定性因素。本规格锁定每个平台的尺寸、构图、字体、
 色彩、出图源，避免发布前临时拼图。
@@ -90,7 +90,7 @@ Negative: text, watermark, logo, signature, cartoon, anime.
 - 底部 800 px：标题 + 制作信息
   - "Echo of the Singularity" + 《奇点回响》
   - 副标题："An AIGC short film by ShotFlow Contributors"
-  - 角标："MIT | https://github.com/MS33834/ShotFlow"
+  - 角标："CNCL | https://github.com/MS33834/ShotFlow"
 
 ---
 
@@ -124,12 +124,12 @@ Negative: text, watermark, logo, signature, cartoon, anime.
 | 小红书 | 用 AI 做了一部 4 分钟科幻短片 |
 | 视频号 | AIGC 科幻短片 · 完整工作流开源 |
 | Instagram | An AIGC Sci-Fi Short |
-| 电影节 | An AIGC short film · MIT |
+| 电影节 | An AIGC short film · CNCL |
 
 ### 角标（小字，可选）
 
 ```text
-github.com/MS33834/ShotFlow · MIT
+github.com/MS33834/ShotFlow · CNCL
 ```
 
 ---

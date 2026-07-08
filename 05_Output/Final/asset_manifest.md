@@ -3,7 +3,7 @@
 > Project: ShotFlow / *Echo of the Singularity* (example)
 > Manifest version: v1.0
 > Date: 2026-07-04
-> License: MIT (see repo root `LICENSE`)
+> License: CNCL v1.0 (see repo root `LICENSE`)
 
 A complete inventory of every asset that goes into the final master. Each row
 maps a logical asset (shot, line, cue, keyframe) to its source file and a

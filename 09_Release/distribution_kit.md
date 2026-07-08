@@ -2,7 +2,7 @@
 
 > 各发布平台的内容包规格——按平台准备一份完整交付包，避免临时拼凑。
 > Project: ShotFlow / *Echo of the Singularity* (example)
-> License: MIT
+> License: CNCL v1.0
 
 每个平台的发布包必须包含：母版视频、封面、标题/简介、标签、字幕、
 版权声明。下表给出每个平台的具体规格，发布前用
@@ -38,7 +38,7 @@ release_bilibili/
 ├── title.txt                        # 标题
 ├── description.txt                  # 简介
 ├── tags.txt                         # 标签
-└── LICENSE.txt                      # MIT 简版
+└── LICENSE.txt                      # CNCL 简版
 ```
 
 ### title.txt 示例
@@ -70,8 +70,8 @@ GitHub  https://github.com/MS33834/ShotFlow
 GitCode https://gitcode.com/badhope/ShotFlow
 
 【授权】
-本作品采用 MIT 开源协议——允许自由使用、修改、分发、商用，
-（须保留版权与许可声明）。
+本作品采用自定义非商业许可证 (CNCL v1.0)——
+未经作者事先书面许可，不授予使用、复制、修改、分发或运营本软件的任何权利。
 ```
 
 ### tags.txt
@@ -108,7 +108,7 @@ AI-generated short film · 4K · 4:10
 AIGC tools, produced with the ShotFlow open-source pipeline.
 
 Open-source workflow: https://github.com/MS33834/ShotFlow
-License: MIT (open source, commercial use permitted)
+License: CNCL v1.0 (Custom Non-Commercial License)
 
 Tools: Flux.1 Kontext + IPAdapter (character consistency), Wan2.2 &
 Kling 2.5 (video), DaVinci Resolve (edit/grade), ElevenLabs (voice),
@@ -168,7 +168,7 @@ release_festival/
 ├── director_statement.pdf           # 创作阐述（≤ 1 页）
 ├── production_notes.pdf             # 制作说明（AIGC 工具链 + 流程图）
 ├── credit_list.pdf                  # 完整片尾字幕
-└── license_declaration.pdf          # 授权声明（MIT + 第三方工具授权链）
+└── license_declaration.pdf          # 授权声明（CNCL + 第三方工具授权链）
 ```
 
 投奖注意事项：
@@ -191,7 +191,7 @@ release_festival/
 - [ ] 已勾选平台 AIGC 创作标识
 - [ ] 封面分辨率符合平台规格
 - [ ] 开源仓库链接已加入简介
-- [ ] MIT 开源协议声明已加入简介
+- [ ] CNCL 许可证声明已加入简介
 - [ ] LICENSE.txt 已随包附送
 - [ ] 发布时间已与 [`06_Research/release_platforms.md`](../06_Research/release_platforms.md) 计划一致
 

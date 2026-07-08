@@ -177,7 +177,7 @@ git ls-remote gitcode refs/heads/main
    # 前端
    cd frontend && npm run lint && npx tsc --noEmit && npm run test && npm run build
    ```
-   预期：后端 162 测试通过，前端 11 测试通过，4179 模块 build 成功，510 文档链接全绿。
+   预期：后端 179 测试通过，前端 16 测试通过，4179 模块 build 成功，510 文档链接全绿。
 
 7. **敏感文件与密钥扫描**：仓库中无密钥、凭据、大体积二进制。
    ```bash

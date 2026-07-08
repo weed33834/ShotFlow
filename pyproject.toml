@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "shotflow"
-version = "0.0.1"
+version = "0.2.0"
 description = "An industrial-grade AIGC video production pipeline template."
 readme = "README.md"
-license = {text = "MIT"}
+license = {text = "Custom Non-Commercial License (CNCL) v1.0"}
 authors = [
     {name = "ShotFlow Team"},
 ]
@@ -16,7 +16,7 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: Creative Industry",
-    "License :: OSI Approved :: MIT License",
+    "License :: Other/Proprietary License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
     "Topic :: Multimedia :: Video",

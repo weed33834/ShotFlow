@@ -2,7 +2,7 @@
 
 > 从一句剧本到 4K 母版，一条可复现的 AIGC 短片流水线。
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![License: CNCL](https://img.shields.io/badge/license-CNCL-red.svg)](./LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![CI](https://github.com/MS33834/ShotFlow/actions/workflows/ci.yml/badge.svg)](./.github/workflows/ci.yml)
 [![ComfyUI](https://img.shields.io/badge/ComfyUI-Workflow-green.svg)](./03_Workflows/)
@@ -334,8 +334,8 @@ SSE 推送用 `useQueueStream` hook 订阅，断线指数退避重连；前端 `
 
 ## 许可证
 
-[MIT 开源协议](./LICENSE)
+[自定义非商业许可证 (CNCL) v1.0](./LICENSE)
 
-- 允许自由使用、复制、修改、合并、发布、分发、再授权和/或销售本软件的副本。
+- 未经作者事先书面许可，不授予使用、复制、修改、分发、再授权或运营本软件的任何权利。
 
 示例影片中的剧本、角色、镜头、对白、配乐均为案例研究内容，做自己的短片时请整体替换。
