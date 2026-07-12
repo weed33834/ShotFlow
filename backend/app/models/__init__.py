@@ -11,6 +11,7 @@ from app.models.pipeline import (
 )
 from app.models.production import Dialogue, Keyframe, Shot, VideoClip
 from app.models.project import Asset, Character, Project
+from app.models.spec import FlowDoc, GenerationTask, Spec
 from app.models.user import VALID_ROLES, User
 
 __all__ = [
@@ -33,6 +34,10 @@ __all__ = [
     "TASK_STATUSES",
     "QaReport",
     "DailyBrief",
+    # 第一版：中央规格 / 生成任务 / 流程文件
+    "Spec",
+    "GenerationTask",
+    "FlowDoc",
     # 社区化
     "CaseStudy",
 ]

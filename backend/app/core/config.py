@@ -95,16 +95,42 @@ class Settings(BaseSettings):
             )
         return self
 
-    # ===== 外部服务 =====
-    # ComfyUI 与各云端 API，沿用现有 .env 变量名
+    # ===== 外部服务（第一版：全部厂商 adapter，SIMULATE 兜底）=====
+    # 本地模型（二期）：ComfyUI / Ollama。第一版不启用。
     COMFYUI_URL: str = "http://127.0.0.1:8188"
-    # ComfyUI 安装路径（preflight_check.py 使用），默认用户主目录下的 ComfyUI
     COMFYUI_DIR: str = str(Path.home() / "ComfyUI")
+
+    # 腾讯：混元生图 / 混元视频 / 腾讯云 TTS（SecretId + SecretKey）
+    TENCENT_SECRET_ID: str = ""
+    TENCENT_SECRET_KEY: str = ""
+    TENCENT_TTS_APP_ID: str = ""
+
+    # 阿里：通义万相（图/视频）/ 通义千问（Brain 备选）
+    DASHSCOPE_API_KEY: str = ""
+
+    # 可灵 Kling
     KLING_API_KEY: str = ""
     KLING_BASE_URL: str = "https://api.piapi.ai"
-    ELEVENLABS_API_KEY: str = ""
+
+    # 即梦（字节火山引擎）
+    JIMENG_API_KEY: str = ""
+    JIMENG_BASE_URL: str = "https://ark.cn-beijing.volces.com"
+
+    # Runway
+    RUNWAY_API_KEY: str = ""
+
+    # HeyGen（口型同步）
+    HEYGEN_API_KEY: str = ""
+
+    # Suno（BGM）
     SUNO_API_KEY: str = ""
     SUNO_BASE_URL: str = "https://api.sunoaiapi.com"
+
+    # Liblib（图，LoRA 生态）
+    LIBLIB_API_KEY: str = ""
+
+    # NovelAI（动漫专精图）
+    NOVELAI_API_KEY: str = ""
 
     @property
     def is_sqlite(self) -> bool:

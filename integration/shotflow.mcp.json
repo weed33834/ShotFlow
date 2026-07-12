@@ -1,0 +1,56 @@
+{
+  "mcpServers": {
+    "ShotFlow": {
+      "command": "python",
+      "args": ["-m", "app.services.mcp_server"],
+      "env": {
+        "PYTHONPATH": "backend",
+        "SIMULATE_MODE": "true"
+      }
+    }
+  },
+  "_meta": {
+    "name": "ShotFlow",
+    "version": "1.0.0",
+    "description": "流程文件驱动的多智能体 AIGC 编排平台。暴露一致性锚点 / 生图 / 生视频 / 生音频 / 口型同步 / 合成 6 个 MCP 工具，供外部智能体（WorkBuddy / 腾讯元器 / 阿里百炼 / Dify）零改造调用出片。",
+    "transport": "stdio",
+    "launch_cwd": "仓库根目录（含 .env 与 backend/）",
+    "auth": "none",
+    "auth_note": "SIMULATE 模式无需鉴权；生产部署建议在 mcp_server.py 外层加 API Key / Bearer 网关。",
+    "tools": [
+      {
+        "name": "consistency_anchor",
+        "summary": "生成角色/风格设定图（一致性锚点），后续图/视频带此图保持长相一致。",
+        "args": "provider:str, prompt:str, reference_images:list[str]=null"
+      },
+      {
+        "name": "generate_image",
+        "summary": "文生图 / 图生图。",
+        "args": "provider:str, prompt:str, ref_images:list[str]=null, params:dict=null"
+      },
+      {
+        "name": "generate_video",
+        "summary": "文生视频 / 图生视频。",
+        "args": "provider:str, prompt:str, image_urls:list[str]=null, duration:int=5, params:dict=null"
+      },
+      {
+        "name": "generate_audio",
+        "summary": "TTS / 配音 / BGM / SFX。",
+        "args": "provider:str, text:str, voice:str='child_cn', audio_type:str='tts'"
+      },
+      {
+        "name": "lip_sync",
+        "summary": "口型同步：让视频角色对口型。",
+        "args": "provider:str, video_url:str, audio_url:str"
+      },
+      {
+        "name": "assemble",
+        "summary": "组装成片：拼接多镜视频 + 混音 + 硬压字幕。",
+        "args": "spec_id:int=null, asset_ids:list[int]=null, subtitles:list[str]=null"
+      }
+    ],
+    "simulate_note": "未配置厂商 Key 时进入 SIMULATE 模式，工具返回 simulate:// 占位资产（url 形如 simulate://hunyuan_image/anchor）。这用于验证全链路与编排逻辑；真实出片需配置厂商 Key 或改由调用方智能体用自身生成能力产出真实资产后回写。",
+    "docs": "见同目录 AGENT_INTEGRATION_GUIDE.md 与 server_card.json",
+    "copyright": "平台仅提供编排与工具调用；生成内容的版权由调用方自行注意与承担。"
+  }
+}

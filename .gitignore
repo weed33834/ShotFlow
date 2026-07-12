@@ -32,6 +32,9 @@
 *.prproj
 *.fcpxml
 
+# --- 验证与临时脚本 ---
+verify_v1.py
+
 # --- 临时与缓存文件 ---
 __pycache__/
 *.pyc
@@ -102,6 +105,8 @@ ENV/
 # --- Web 平台 ---
 # SQLite 开发数据库
 backend/*.db
+shotflow_dev.db
+*.db-journal
 backend/shotflow.db
 backend/test.db
 test_shotflow.db

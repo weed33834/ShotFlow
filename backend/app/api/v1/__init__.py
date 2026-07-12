@@ -5,12 +5,14 @@ from app.api.v1 import (
     audio,
     auth,
     case_studies,
+    generate,
     health,
     keyframes,
     misc,
     projects,
     queue,
     shots,
+    tools,
     videos,
     workflow_configs,
 )
@@ -33,3 +35,6 @@ api_router.include_router(misc.workflow_router, prefix="/workflows", tags=["work
 api_router.include_router(misc.qa_router, prefix="/qa", tags=["qa"])
 api_router.include_router(misc.daily_router, prefix="/daily-briefs", tags=["daily-briefs"])
 api_router.include_router(case_studies.router, prefix="/case-studies", tags=["case-studies"])
+# 第一版：流程文件驱动的能力中台
+api_router.include_router(tools.router, prefix="/tools", tags=["tools"])
+api_router.include_router(generate.router, prefix="/generate", tags=["generate"])

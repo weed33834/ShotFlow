@@ -7,6 +7,7 @@ import {
   LogoutOutlined,
   PictureOutlined,
   PlayCircleOutlined,
+  RocketOutlined,
   SettingOutlined,
   SoundOutlined,
   ThunderboltOutlined,
@@ -25,6 +26,7 @@ const menuRoutes = {
   path: "/",
   routes: [
     { path: "/dashboard", name: "总览看板", icon: <DashboardOutlined /> },
+    { path: "/generate", name: "一句话出片", icon: <RocketOutlined /> },
     { path: "/projects", name: "项目", icon: <AppstoreOutlined /> },
     { path: "/shots", name: "镜头", icon: <VideoCameraOutlined /> },
     { path: "/keyframes", name: "关键帧", icon: <FileImageOutlined /> },

@@ -1,0 +1,164 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "ShotFlow API",
+    "version": "1.0.0",
+    "description": "流程文件驱动的多智能体 AIGC 编排平台。REST 接口与 MCP 工具同源（均来自 services/tools_service.py）。SIMULATE 模式下生成类接口返回 simulate:// 占位资产；配置厂商 Key 后返回真实资产 URL。",
+    "license": { "name": "自行注意版权：生成内容版权由调用方承担" }
+  },
+  "servers": [
+    { "url": "http://localhost:8000/api/v1", "description": "本地默认（uvicorn 启动 backend 后）" }
+  ],
+  "paths": {
+    "/generate": {
+      "post": {
+        "summary": "一句话 → 默认编排器 → 出片（人用 UI 入口）",
+        "tags": ["generate"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/GenerateReq" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "编排完成（SIMULATE 占位或真实出片）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "spec_id": { "type": "integer" },
+                    "status": { "type": "string", "enum": ["simulated", "generated"] },
+                    "message": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/generate": {
+      "post": {
+        "summary": "文生图/图生图/文生视频/口型同步等（kind 决定）",
+        "tags": ["tools"],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ToolGenerateReq" } } }
+        },
+        "responses": { "200": { "description": "生成结果", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ToolResult" } } } } }
+      }
+    },
+    "/tools/anchor": {
+      "post": {
+        "summary": "一致性锚定：生成角色/风格设定图",
+        "tags": ["tools"],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ToolGenerateReq" } } }
+        },
+        "responses": { "200": { "description": "锚点结果", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ToolResult" } } } } }
+      }
+    },
+    "/tools/assemble": {
+      "post": {
+        "summary": "组装成片：拼接 + 混音 + 硬压字幕",
+        "tags": ["tools"],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AssembleReq" } } }
+        },
+        "responses": { "200": { "description": "合成结果", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ToolResult" } } } } }
+      }
+    },
+    "/tools/spec": {
+      "post": {
+        "summary": "写回中央创意规格",
+        "tags": ["tools"],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SpecSaveReq" } } }
+        },
+        "responses": { "200": { "description": "规格", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SpecOut" } } } } }
+      }
+    },
+    "/tools/spec/{spec_id}": {
+      "get": {
+        "summary": "读取指定 Spec",
+        "tags": ["tools"],
+        "parameters": [{ "name": "spec_id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "规格", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SpecOut" } } } } }
+      }
+    },
+    "/tools/assets": {
+      "get": {
+        "summary": "列出最近 50 个资产",
+        "tags": ["tools"],
+        "responses": { "200": { "description": "资产列表", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ToolResult" } } } } } }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "GenerateReq": {
+        "type": "object",
+        "required": ["nl_prompt", "output_type"],
+        "properties": {
+          "nl_prompt": { "type": "string", "description": "自然语言需求，如『做一个奶龙奶娃捧腹大笑的短视频』" },
+          "output_type": { "type": "string", "enum": ["video", "image_set", "micro_movie", "comic", "vn"] },
+          "project_id": { "type": "integer", "nullable": true }
+        }
+      },
+      "ToolGenerateReq": {
+        "type": "object",
+        "required": ["provider", "kind"],
+        "properties": {
+          "provider": { "type": "string", "description": "厂商名：hunyuan_image/wanx/novelai/liblib/jimeng/kling/hunyuan_video/runway/tencent_tts/suno/heygen" },
+          "kind": { "type": "string", "enum": ["anchor", "image", "video", "audio", "lipsync"] },
+          "params": {
+            "type": "object",
+            "description": "生成参数；常见键：prompt/ref_images/image_urls/duration/voice/audio_type/text/seed/size/style"
+          }
+        }
+      },
+      "AssembleReq": {
+        "type": "object",
+        "properties": {
+          "spec_id": { "type": "integer", "nullable": true },
+          "asset_ids": { "type": "array", "items": { "type": "integer" } },
+          "subtitles": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "SpecSaveReq": {
+        "type": "object",
+        "properties": {
+          "project_id": { "type": "integer", "nullable": true },
+          "output_type": { "type": "string" },
+          "intent": { "type": "string" },
+          "data": { "type": "object" }
+        }
+      },
+      "ToolResult": {
+        "type": "object",
+        "properties": {
+          "asset_id": { "type": "integer" },
+          "url": { "type": "string", "description": "真实资产 URL 或 simulate:// 占位" },
+          "provider": { "type": "string" },
+          "meta": { "type": "object" }
+        }
+      },
+      "SpecOut": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "output_type": { "type": "string" },
+          "intent": { "type": "string" },
+          "data": { "type": "object" }
+        }
+      }
+    }
+  }
+}

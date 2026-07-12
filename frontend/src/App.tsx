@@ -10,6 +10,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import MainLayout from "@/layouts/MainLayout";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
+import Generate from "@/pages/Generate";
 import Projects from "@/pages/Projects";
 import Shots from "@/pages/Shots";
 import Keyframes from "@/pages/Keyframes";
@@ -47,6 +48,7 @@ export default function App() {
                 >
                   <Route path="/" element={<Navigate to="/dashboard" replace />} />
                   <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/generate" element={<Generate />} />
                   <Route path="/projects" element={<Projects />} />
                   <Route path="/shots" element={<Shots />} />
                   <Route path="/keyframes" element={<Keyframes />} />

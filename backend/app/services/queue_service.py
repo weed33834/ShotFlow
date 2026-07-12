@@ -14,6 +14,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
+from app.core.config import settings
 from app.models.pipeline import RenderTask
 from app.schemas.pipeline import RenderTaskCreate
 from app.tasks.render_tasks import run_render_task
@@ -75,7 +76,21 @@ def enqueue_task(db: Session, payload: RenderTaskCreate) -> RenderTask:
     db.add(task)
     db.commit()
     db.refresh(task)
+    _dispatch_to_celery(db, task)
+    return task
 
+
+def _dispatch_to_celery(db: Session, task: RenderTask) -> None:
+    """派发任务到 Celery。
+
+    SIMULATE_MODE 且 broker 不可达时，退化为进程内同步执行：直接跑渲染任务体，
+    无需 Redis / Celery worker。这把项目"无 GPU 也能跑通全链路"的承诺从
+    docker-compose（含 Redis+Celery）进一步降到"仅 uvicorn + SQLite"，
+    方便本地零依赖开发联调与演示。
+
+    非 SIMULATE（真实 GPU）路径保持原行为：broker 不可达则标记 failed，
+    不擅自同步执行真实生成（避免阻塞请求线程、绕过 worker 资源管理）。
+    """
     try:
         async_result = run_render_task.delay(task.id)
         task.celery_task_id = async_result.id
@@ -83,17 +98,31 @@ def enqueue_task(db: Session, payload: RenderTaskCreate) -> RenderTask:
         db.refresh(task)
         logger.info("任务 %s 已派发 celery_id=%s", task.id, async_result.id)
     except Exception as e:  # noqa: BLE001
-        # 派发失败标记 failed，避免任务以 pending 状态滞留队列永不被 worker 拾取
-        logger.warning("Celery 派发失败（任务标记为 failed）: %s", e)
-        db.rollback()
-        task.status = "failed"
-        task.error_class = "dispatch_error"
-        task.error = f"派发失败: {e}"
-        task.failed_at = _now()
-        db.commit()
-        db.refresh(task)
-
-    return task
+        if settings.SIMULATE_MODE:
+            logger.warning("Celery broker 不可达，SIMULATE_MODE 下转进程内同步执行: %s", e)
+            try:
+                # .run() 直接执行任务体，不碰 broker / result backend，
+                # 由任务体内部完成 running -> completed/failed 的状态迁移。
+                run_render_task.run(task.id)
+                db.refresh(task)
+            except Exception as ex:  # noqa: BLE001
+                logger.exception("SIMULATE 同步执行异常: %s", ex)
+                db.rollback()
+                task.status = "failed"
+                task.error_class = "simulate_exec_error"
+                task.error = f"SIMULATE 同步执行失败: {ex}"
+                task.failed_at = _now()
+                db.commit()
+                db.refresh(task)
+        else:
+            logger.warning("Celery 派发失败（任务标记为 failed）: %s", e)
+            db.rollback()
+            task.status = "failed"
+            task.error_class = "dispatch_error"
+            task.error = f"派发失败: {e}"
+            task.failed_at = _now()
+            db.commit()
+            db.refresh(task)
 
 
 def get_task(db: Session, task_id: int) -> Optional[RenderTask]:
@@ -287,20 +316,7 @@ def retry_task(db: Session, task_id: int) -> Optional[RenderTask]:
     task.checkpoint = ""
     db.commit()
     db.refresh(task)
-    try:
-        async_result = run_render_task.delay(task.id)
-        task.celery_task_id = async_result.id
-        db.commit()
-        db.refresh(task)
-    except Exception as e:  # noqa: BLE001
-        # 派发失败标记 failed，避免任务静默滞留 pending 永不被 worker 拾取
-        logger.warning("重试派发失败: %s", e)
-        task.status = "failed"
-        task.error_class = "dispatch_error"
-        task.error = f"派发失败: {e}"
-        task.failed_at = _now()
-        db.commit()
-        db.refresh(task)
+    _dispatch_to_celery(db, task)
     return task
 
 

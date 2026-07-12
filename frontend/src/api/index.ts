@@ -8,6 +8,8 @@ import type {
   DailyBriefCreate,
   Dialogue,
   DialogueCreate,
+  GenerateRequest,
+  GenerateResponse,
   Keyframe,
   KeyframeCreate,
   Project,
@@ -22,6 +24,7 @@ import type {
   Shot,
   ShotCreate,
   ShotUpdate,
+  ToolResult,
   VideoClip,
   VideoClipCreate,
   Workflow,
@@ -89,4 +92,15 @@ export const caseStudiesApi = {
     http.patch<CaseStudy>(`/case-studies/${id}`, payload).then((r) => r.data),
   remove: (id: number) =>
     http.delete<{ message: string }>(`/case-studies/${id}`).then((r) => r.data),
+};
+
+// 一句话出片 — 自然语言生成 + 工具资产
+export const generateApi = {
+  generate: (payload: GenerateRequest) =>
+    http.post<GenerateResponse>("/generate", payload).then((r) => r.data),
+};
+
+export const toolsApi = {
+  assets: () =>
+    http.get<ToolResult[]>("/tools/assets").then((r) => r.data),
 };

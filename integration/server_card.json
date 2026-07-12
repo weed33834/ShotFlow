@@ -1,0 +1,40 @@
+{
+  "schema": "https://modelcontextprotocol.io/schemas/server-card/2025-11-19.json",
+  "server": {
+    "name": "ShotFlow",
+    "version": "1.0.0",
+    "description": "流程文件驱动的多智能体 AIGC 编排平台。读 flow 文件（SOP）自行编排，暴露 6 个生成工具供智能体零改造调用出片。",
+    "transport": [
+      {
+        "type": "stdio",
+        "command": "python",
+        "args": ["-m", "app.services.mcp_server"],
+        "env": { "PYTHONPATH": "backend", "SIMULATE_MODE": "true" }
+      }
+    ],
+    "tools": [
+      { "name": "consistency_anchor", "description": "生成角色/风格设定图（一致性锚点）" },
+      { "name": "generate_image", "description": "文生图 / 图生图" },
+      { "name": "generate_video", "description": "文生视频 / 图生视频" },
+      { "name": "generate_audio", "description": "TTS / 配音 / BGM / SFX" },
+      { "name": "lip_sync", "description": "口型同步" },
+      { "name": "assemble", "description": "组装成片：拼接 + 混音 + 硬压字幕" }
+    ],
+    "capabilities": {
+      "simulate": true,
+      "flow_driven": true,
+      "vendor_agnostic": true
+    }
+  },
+  "auth": {
+    "type": "none",
+    "note": "SIMULATE 模式无需鉴权；生产建议在外层 API 网关加 Bearer Token。"
+  },
+  "publisher": {
+    "name": "ShotFlow",
+    "contact": "仓库根 README 与 integration/ 目录"
+  },
+  "legal": {
+    "copyright": "平台仅提供编排与工具调用能力；生成内容的版权由调用方自行注意与承担。"
+  }
+}

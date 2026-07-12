@@ -291,3 +291,25 @@ export interface CaseStudyCreate {
 }
 
 export type CaseStudyUpdate = Partial<CaseStudyCreate>;
+
+// 一句话出片 — 自然语言生成接口类型
+export type OutputType = "video" | "image_set" | "micro_movie" | "comic" | "vn";
+
+export interface GenerateRequest {
+  nl_prompt: string;
+  output_type: OutputType;
+}
+
+export interface GenerateResponse {
+  spec_id: number;
+  status: "simulated" | "generated";
+  message: string;
+}
+
+// 工具资产结果
+export interface ToolResult {
+  asset_id: string;
+  url: string;
+  provider: string;
+  meta: Record<string, unknown>;
+}
