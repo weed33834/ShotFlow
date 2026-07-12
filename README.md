@@ -1,341 +1,446 @@
 # ShotFlow
 
-> Script in, 4K master out — a reproducible AIGC short-film pipeline.
+> Flow-file-driven AIGC orchestration platform. External agents read SOP definitions and call vendor-agnostic generation tools — no hardcoded brain, full reproducibility.
 
-[![License: CNCL](https://img.shields.io/badge/license-CNCL-red.svg)](./LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
-[![CI](https://github.com/MS33834/ShotFlow/actions/workflows/ci.yml/badge.svg)](./.github/workflows/ci.yml)
-[![ComfyUI](https://img.shields.io/badge/ComfyUI-Workflow-green.svg)](./03_Workflows/)
-[![Docker](https://img.shields.io/badge/Docker-Supported-2496ED.svg)](./docker-compose.yml)
-[![Site](https://img.shields.io/badge/site-github%20pages-2dd4bf.svg)](https://ms33834.github.io/ShotFlow/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-English | [中文](./README.zh.md) | [Multilingual docs](./docs/i18n/README.md)
-
-ShotFlow turns AIGC short-film making from a stack of one-off prompts into a reproducible pipeline. The example film, *Echo of the Singularity*, runs through every stage — script, character bible, 29 keyframes, 24 shots, audio, grade, 4K master — with parameters logged at each step so a take can be reproduced, reviewed, and handed off.
-
-Grab the whole pipeline for a new film, or lift a single piece — the character-consistency setup, the render queue, the QA scripts — and drop it into something already in flight.
+English · [中文](README.zh-CN.md) · [日本語](README.ja.md)
 
 ---
 
-## Why this exists
+## Table of Contents
 
-AIGC video tools are powerful but brittle. A short film hits the same walls every time:
-
-- The same character looks like a different person in every shot.
-- Footage flickers, warps, or moves in ways nothing should move.
-- Prompts and the storyboard drift apart, and the gap only shows up in the edit.
-- Parameters vanish between sessions, so a good take can never be rerun.
-- Files get renamed, overwritten, or lost across a small team.
-
-ShotFlow ties these loose ends into one pipeline so a result is reproducible and a team can actually collaborate on it. It is a template, not a product — swap in a story and go.
+- [What is ShotFlow](#what-is-shotflow)
+- [Architecture Overview](#architecture-overview)
+- [Features](#features)
+- [Supported Providers](#supported-providers)
+- [Quick Start](#quick-start)
+- [Production Workflows](#production-workflows)
+- [MCP Tool Reference](#mcp-tool-reference)
+- [Agent Integration](#agent-integration)
+- [Project Structure](#project-structure)
+- [FAQ](#faq)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
-## The pipeline at a glance
+## What is ShotFlow
+
+ShotFlow is an **AIGC (AI-Generated Content) orchestration platform** designed
+around a simple idea: separate the *what* from the *how*.
+
+Instead of embedding generation logic into a monolithic pipeline, ShotFlow
+provides:
+
+1. **SOP flow files** — Markdown documents that define, step by step, how to
+   produce a specific output type (video, image set, comic, micro-movie,
+   visual novel).
+2. **Vendor-agnostic generation tools** — Exposed via both REST API and
+   MCP (Model Context Protocol), so any agent framework can call them.
+3. **11 cloud provider integrations** — From Tencent Hunyuan to Runway,
+   HeyGen, and NovelAI, all behind a uniform `BaseProvider` interface.
+
+External agents — whether WorkBuddy, Tencent Yuanqi, Alibaba Bailian, or
+Dify — read the SOP flow files and drive the tools. ShotFlow never hardcodes
+a "brain"; it gives agents the tools and instructions they need to act.
+
+---
+
+## Architecture Overview
 
 ```mermaid
-flowchart TB
-    subgraph Pre["Pre-production"]
-        A[Script & world-building]
-        B[Character bible]
-        C[24-shot storyboard]
+graph TB
+    subgraph External["External Agent Layer"]
+        WB["🧠 WorkBuddy<br/><i>via shotflow-driver skill</i>"]
+        YQ["🧠 Tencent Yuanqi<br/><i>via MCP</i>"]
+        BL["🧠 Alibaba Bailian<br/><i>via REST / OpenAPI</i>"]
+        DF["🧠 Dify<br/><i>via MCP</i>"]
     end
-    subgraph Asset["Assets"]
-        D[Flux.1 Kontext + IPAdapter]
-        E[29 keyframes]
+
+    subgraph ShotFlow["ShotFlow Platform"]
+        MC["📡 MCP Server<br/>6 tools · JSON-RPC 2.0"]
+        API["🌐 REST API<br/>7 endpoints · OpenAPI 3.0"]
+        OR["⚙️ Orchestrator<br/>Reads SOP · Calls providers"]
+        FL["📋 SOP Flow Files<br/>make_video.sop.md<br/>make_image_set.sop.md<br/>make_comic.sop.md<br/>make_micro_movie.sop.md<br/>make_vn.sop.md"]
     end
-    subgraph Motion["Motion"]
-        F[Wan2.2 I2V 14B]
-        G[Kling 2.5 Turbo]
-        H[19 standard shots]
-        I[5 complex shots]
+
+    subgraph Providers["Vendor Provider Layer"]
+        TX["Tencent<br/>Hunyuan Image/Video<br/>TTS"]
+        AL["Alibaba<br/>Wanxiang (Wanx)"]
+        KD["Kling · Jimeng<br/>Runway · HeyGen"]
+        AU["Suno · Liblib<br/>NovelAI"]
     end
-    subgraph Post["Post"]
-        J[DaVinci edit & grade]
-        K[ElevenLabs voice]
-        L[Suno score]
-        M[Topaz 4K upscale]
-    end
-    subgraph Release["Release"]
-        N[4K master]
-        O[Workflow package]
-        P[Tutorial & release]
-    end
-    A --> D
-    B --> D
-    C --> E
-    D --> E
-    E --> F
-    E --> G
-    F --> H
-    G --> I
-    H --> J
-    I --> J
-    J --> M
-    K --> J
-    L --> J
-    M --> N
-    N --> O
-    O --> P
-```
 
-The full chain, with the reasoning behind each choice, is in [`AIGC_Experience_Chain.md`](./AIGC_Experience_Chain.md).
+    WB -->|"MCP stdio"| MC
+    YQ -->|"MCP"| MC
+    BL -->|"REST"| API
+    DF -->|"MCP"| MC
 
----
+    MC --> OR
+    API --> OR
+    OR --> FL
+    OR -->|"generate(kind, params)"| TX
+    OR -->|"generate(kind, params)"| AL
+    OR -->|"generate(kind, params)"| KD
+    OR -->|"generate(kind, params)"| AU
 
-## Mirrors
-
-| Platform | URL |
-|----------|-----|
-| GitHub | https://github.com/MS33834/ShotFlow |
-| GitCode | https://gitcode.com/badhope/ShotFlow |
-| Project site | https://ms33834.github.io/ShotFlow/ |
-
-Both stay in sync via [`08_Automation/sync_repos.sh`](./08_Automation/sync_repos.sh).
-
----
-
-## Repository layout
-
-```
-ShotFlow/
-├── 01_Assets/              # Characters, scenes, audio assets
-├── 02_Scripts/             # Script, storyboard, prompts
-├── 03_Workflows/           # ComfyUI JSON workflows
-├── 04_SOP/                 # Manuals and production standards
-├── 05_Output/              # Final deliverables
-├── 06_Research/            # Tech stack, budget, licensing, tuning notes
-├── 07_Team/                # Team roles and PM templates
-├── 08_Automation/          # Deployment, generation, QA, sync scripts
-├── 09_Release/             # Release checklists and showcase templates
-├── backend/                # Web platform backend (FastAPI + SQLAlchemy + Celery)
-├── frontend/               # Web platform admin UI (React + Vite + Ant Design Pro)
-├── examples/               # Samples + the Echo of the Singularity case study
-├── docs/                   # Tutorial, blog, i18n index
-├── tests/                  # Health-check tests
-├── .github/                # CI, Issue/PR templates, CODEOWNERS, Dependabot
-├── AIGC_Experience_Chain.md   # End-to-end pipeline reasoning
-├── CHANGELOG.md
-├── CODE_OF_CONDUCT.md
-├── CONTRIBUTING.md
-├── COST_ANALYSIS.md
-├── Dockerfile
-├── LICENSE
-├── Makefile
-├── README.md               # English (primary)
-├── README.zh.md            # 中文
-├── SECURITY.md
-├── TROUBLESHOOTING.md
-├── docker-compose.yml
-└── pyproject.toml
+    style ShotFlow fill:#1a1a2e,color:#e0e0e0
+    style External fill:#16213e,color:#e0e0e0
+    style Providers fill:#0f3460,color:#e0e0e0
 ```
 
 ---
 
-## Tech stack
+## Features
 
-| Stage | Tool / Model | What it does here |
-|-------|--------------|-------------------|
-| Writing | DeepSeek / Claude | Script, world, character bible |
-| Character consistency | Flux.1 Kontext + IPAdapter | Reference images and keyframes that stay on-model |
-| Standard shots | Wan2.2 I2V 14B | Image-to-video for dialogue and close-ups |
-| Complex shots | Kling 2.5 Turbo | Keyframe-to-keyframe for movement and transitions |
-| Edit & grade | DaVinci Resolve | Cut and Teal-&-Orange grade |
-| Voice | ElevenLabs | Character dialogue |
-| Music | Suno / Udio | Atmospheric score |
-| Upscale | Topaz Video AI | 4K and denoise |
-| Pipeline host | ComfyUI | Node-based generation |
+### Core Design
+
+- **Flow-file driven**: Every production pipeline is defined as an SOP Markdown
+  file. Change the SOP to change the output — no code changes needed.
+- **No hardcoded brain**: ShotFlow provides tools, not opinions. External
+  agents read the SOP and orchestrate independently.
+- **SIMULATE mode**: Develop and test the full pipeline without GPU or API
+  credentials. All providers return placeholder assets.
+
+### Provider Support
+
+- **11 cloud vendors** integrated behind a uniform `BaseProvider` ABC.
+- **MCP + REST dual exposure**: Both protocols available for maximum
+  agent-framework compatibility.
+- **Easy to extend**: Add a new provider by implementing `generate(kind, params)`
+  and registering it in `app/services/providers/__init__.py`.
+
+### Reproducibility
+
+- Every generation step saves a complete `Spec` record to the database,
+  capturing parameters, provider, and output asset references.
+- Results can be re-examined, compared, and re-ran.
+- Changelog and version control for the entire project.
+
+### Agent Ecosystem Ready
+
+- **WorkBuddy skill**: `shotflow-driver` lets you generate a video with a
+  single sentence.
+- **MCP manifest**: Drop `integration/shotflow.mcp.json` into any MCP client
+  to discover all 6 tools instantly.
+- **OpenAPI spec**: Import `integration/openapi.json` into code generators
+  (OpenAPI Generator, Postman, etc.).
 
 ---
 
-## Quick start
+## Supported Providers
 
-> New here? The [step-by-step tutorial](./docs/tutorial.md) ([中文](./docs/tutorial.zh.md)) walks from an empty repo to a 4K master, one command at a time.
+| Provider | Type | Status | Requires |
+|---|---|---|---|
+| Hunyuan Image | Image Generation | ✅ | SecretID / SecretKey |
+| Hunyuan Video | Video Generation | ✅ | SecretID / SecretKey |
+| Tencent TTS | Text-to-Speech | ✅ | SecretID / SecretKey |
+| Wanxiang / Wanx | Image Generation | ✅ | API Key |
+| Kling | Video Generation | ✅ | API Key + Base URL |
+| Jimeng | Image Generation | ✅ | API Key + Base URL |
+| Runway | Video Generation | ✅ | API Key |
+| HeyGen | Lip-Sync Video | ✅ | API Key |
+| Suno | Music Generation | ✅ | API Key |
+| Liblib | Image Generation | ✅ | API Key |
+| NovelAI | Image Generation | ✅ | API Key |
 
-### Option 1 — Docker (fastest look)
+All providers support `SIMULATE_MODE=true` — set this in `.env` to test the
+full pipeline without any keys.
 
-```bash
-docker compose up -d
-```
+---
 
-The image ships with Python deps and project scripts. ComfyUI and model weights aren't bundled (licensing + size) — pull them with [`08_Automation/deploy_comfyui.sh`](./08_Automation/deploy_comfyui.sh).
+## Quick Start
 
-### Option 2 — Local source
+### Prerequisites
+
+- Python 3.12+
+- Node.js 22+ (for frontend development)
+- (Optional) PostgreSQL for production
+
+### 1. Clone and Set Up
 
 ```bash
 git clone https://github.com/MS33834/ShotFlow.git
 cd ShotFlow
 
-cp .env.example .env       # fill KLING_API_KEY, ELEVENLABS_API_KEY, SUNO_API_KEY, ...
-bash 08_Automation/deploy_comfyui.sh   # needs NVIDIA GPU, RTX 4090 24GB recommended
-make setup                 # install Python deps (black, isort, pytest included)
-make check                 # verify project structure
+# Backend
+python -m venv venv
+source venv/bin/activate  # Linux/macOS
+# venv\Scripts\activate   # Windows
+pip install -r backend/requirements.txt
 
-python 08_Automation/preflight_check.py --dry-run     # structure + keys, no GPU needed
-python 08_Automation/batch_keyframe_gen.py --dry-run  # preview, then drop the flag
-python 08_Automation/storyboard_to_video.py --dry-run
+# Environment
+cp .env.example .env
+# Edit .env if you have API keys; SIMULATE_MODE=true works out of the box
 ```
 
-Generation scripts call ComfyUI or cloud APIs — run with `--help` or `--dry-run` first. `asset_dashboard.py` and `daily_brief.py` write files by default; use `--dry-run` to preview.
-
-Common `make` targets:
+### 2. Initialize Database
 
 ```bash
-make help     # list everything
-make check    # structure check
-make setup    # install deps
-make docker   # start the stack
-make test     # run checks
-make sync     # push to both remotes
-make clean    # remove temp files
+PYTHONPATH=backend python backend/init_db.py
 ```
 
----
-
-## Web platform
-
-Beyond the CLI toolkit, ShotFlow ships a Web platform so non-engineers can drive the pipeline from a browser. The backend wraps the existing `08_Automation` scripts instead of rewriting them — same generation logic, two surfaces.
+### 3. Start the Server
 
 ```bash
-docker compose up -d       # PostgreSQL + Redis + backend + Celery worker
-# API docs (Swagger): http://localhost:8000/docs
-# Health:             http://localhost:8000/api/v1/health
-```
+# Backend API
+PYTHONPATH=backend uvicorn app.main:app --reload --port 8000
 
-`SIMULATE_MODE=true` is on by default — every service returns mock output, so the whole chain runs **without a GPU**. Flip it to `false` on a GPU host to hit the real ComfyUI / Kling / ElevenLabs / Suno backends.
-
-### Backend API
-
-| Route | Purpose |
-|-------|---------|
-| `/api/v1/auth` | Login / current user / user CRUD (RBAC) |
-| `/api/v1/projects` | Project CRUD |
-| `/api/v1/shots` | Shot & storyboard management |
-| `/api/v1/keyframes` | Keyframe management |
-| `/api/v1/videos` | Video clip management |
-| `/api/v1/audio` | Dialogue & voiceover |
-| `/api/v1/queue` | Render queue: submit / query / retry / cancel |
-| `/api/v1/queue/stream/events` | SSE real-time queue status |
-| `/api/v1/workflows` | ComfyUI workflow management |
-| `/api/v1/workflows-cfg` | YAML workflow config + provider scoring |
-| `/api/v1/assets` | Asset gallery (scans disk by type) |
-| `/api/v1/qa` | QA reports |
-| `/api/v1/daily-briefs` | Daily stand-up briefs |
-| `/api/v1/case-studies` | Public case study showcase + admin CRUD |
-| `/api/v1/health` | Health check (DB + Redis) |
-
-Interactive docs at `/docs` (Swagger) and `/redoc`.
-
-### Frontend admin console
-
-React 18 + TypeScript + Vite + Ant Design Pro. Covers projects / shots / keyframes / render queue / workflows / dialogue / QA, with SSE real-time queue status.
-
-```bash
+# Frontend (separate terminal)
 cd frontend
 npm install
-npm run dev       # http://localhost:5173 (proxied to backend :8000)
-npm run build
-npm run typecheck
+npm run dev
 ```
 
-| Route | Purpose |
-|-------|---------|
-| `/login` | Login (JWT) |
-| `/dashboard` | Overview (health + queue stats + projects) |
-| `/projects` | Project CRUD |
-| `/shots` | Shot management (filter by project) |
-| `/keyframes` | Keyframe management (submit generation) |
-| `/queue` | Render queue (SSE + submit/retry/cancel) |
-| `/workflows` | ComfyUI workflow management |
-| `/workflow-configs` | YAML config + provider scoring |
-| `/assets` | Asset gallery (scans disk by type) |
-| `/audio` | Dialogue & voiceover |
-| `/qa` | QA reports |
-| `/case-studies` | Case study showcase |
+### 4. Generate a Video (SIMULATE)
 
-SSE push uses a `useQueueStream` hook with exponential-backoff reconnect; frontend `types/index.ts` stays in sync with backend `schemas`; Nginx multi-stage build disables SSE proxy buffering.
+```bash
+curl -X POST http://localhost:8000/api/v1/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nl_prompt": "A happy little egg-yolk creature laughing on grass",
+    "output_type": "video"
+  }'
+```
 
----
+This runs the `make_video.sop.md` workflow in SIMULATE mode and returns a
+spec ID with placeholder asset URLs.
 
-## Examples
+### 5. Verify MCP Server
 
-- [`examples/character_prompts.md`](./examples/character_prompts.md) — Ava character-consistency prompts
-- [`examples/storyboard_sample.md`](./examples/storyboard_sample.md) — simplified storyboard, first 3 shots
-- [`examples/comfyui_api_payload.json`](./examples/comfyui_api_payload.json) — ComfyUI API payload
-- [`examples/env.example`](./examples/env.example) — minimal env template
-- [`examples/echo-of-singularity/`](./examples/echo-of-singularity/) — full case study (bilingual)
+```bash
+PYTHONPATH=backend python -m app.services.mcp_server
+```
+
+The server logs `FastMCP 3.4.4` and registers 6 tools, then waits for
+stdio-based agent communication.
 
 ---
 
-## The complete short film
+## Production Workflows
 
-The example film *Echo of the Singularity* is not a few demo clips — it is a complete AIGC work, end to end. Every artifact a reviewer would expect from a finished short sits in the repo as a worked example to clone, read, and reuse.
+Each workflow is defined as an SOP Markdown file in `flows/`. Below are
+the available flows and their step sequences.
 
-| Phase | Artifact | What it covers |
-|-------|----------|----------------|
-| Pre-production | [`02_Scripts/`](./02_Scripts/) | Script, worldbuilding, character bible, 24-shot storyboard, keyframe prompts |
-| Production plan | [`examples/echo-of-singularity/`](./examples/echo-of-singularity/) | Schedule, production log, character bible, shot tracker |
-| Audio planning | [`01_Assets/Audio/voice_bibles.md`](./01_Assets/Audio/voice_bibles.md) | Per-character TTS engine, voice id, stability/style, emotion segments |
-| Audio planning | [`01_Assets/Audio/cue_sheet.md`](./01_Assets/Audio/cue_sheet.md) | Every dialogue/music/SFX cue with in/out timecodes and mix rules |
-| Audio planning | [`01_Assets/Audio/sfx_list.md`](./01_Assets/Audio/sfx_list.md) | Per-SFX purpose, source (freesound CC0 / AudioLDM), license chain |
-| Edit | [`05_Output/EDL/shotflow_v01.edl`](./05_Output/EDL/shotflow_v01.edl) | Edit decision list — the timeline spine |
-| Post | [`05_Output/Final/assembly_guide.md`](./05_Output/Final/assembly_guide.md) | How to assemble the locked master from EDL + assets in DaVinci Resolve |
-| Post | [`05_Output/Final/color_grading_notes.md`](./05_Output/Final/color_grading_notes.md) | Teal-&-Orange grade recipe, per-scene node graph |
-| Post | [`05_Output/Final/final_mix_notes.md`](./05_Output/Final/final_mix_notes.md) | Mix targets, side-chain rules, loudness ceilings |
-| Post | [`05_Output/Final/upscale_and_repair_notes.md`](./05_Output/Final/upscale_and_repair_notes.md) | Topaz 4K upscale + defect repair log |
-| Inventory | [`05_Output/Final/asset_manifest.md`](./05_Output/Final/asset_manifest.md) | Complete asset list (24 shots / 10 dialogue cues / 6 music cues / 10 SFX / 29 keyframes) + checksum template |
-| Subtitles | [`05_Output/Final/subtitles/`](./05_Output/Final/subtitles/) | `.srt` (zh + en) + styled `.ass` for festival burn-in |
-| Credits | [`05_Output/Final/credits.md`](./05_Output/Final/credits.md) | Cast, voice, music, tools, license roll |
-| Specs | [`05_Output/Final/delivery_specs.md`](./05_Output/Final/delivery_specs.md) | Per-platform master specs (4K / 1080p / vertical / square / ProRes) |
-| Release | [`09_Release/distribution_kit.md`](./09_Release/distribution_kit.md) | Per-platform distribution package: title/description/tag templates, AIGC disclosure rules |
-| Release | [`09_Release/poster_spec.md`](./09_Release/poster_spec.md) | Per-platform cover & poster specs: sizes, color/font, Flux.1 prompts, layout workflow |
-| Compliance | [`06_Research/licensing_compliance.md`](./06_Research/licensing_compliance.md) | Per-tool license audit, commercial-use boundary, budget for commercial upgrade |
+### Video Production (`flows/make_video.sop.md`)
 
-The rendered video files themselves (4K master, 1080p web cut, vertical cut, audio master) are **not** committed — they're large and several use NC-licensed model outputs. The paperwork above is the reference; run the pipeline end-to-end to populate the actual media, then follow `assembly_guide.md` to lock the master.
+```mermaid
+flowchart LR
+    A["1. Brainstorm<br/>Analyze prompt → subject detection"] --> B["2. Character Anchor<br/>Generate consistency anchor image"]
+    B --> C["3. Multi-Shot Loop<br/>×3 shots"]
+    C --> D["3a. Shot Image<br/>Hunyuan Image / Wanx"]
+    C --> E["3b. Shot Video<br/>Kling / Hunyuan Video / Runway"]
+    C --> F["3c. Shot Audio<br/>Tencent TTS"]
+    D --> G["4. Lip Sync<br/>HeyGen"]
+    F --> G
+    G --> H["5. Assemble<br/>ffmpeg (placeholder in SIMULATE)"]
+```
+
+### Image Set (`flows/make_image_set.sop.md`)
+
+```mermaid
+flowchart LR
+    A["1. Brainstorm"] --> B["2. Character Anchor"]
+    B --> C["3. Multi-Image Loop<br/>×3 frames"]
+    C --> D["Image Generation<br/>Hunyuan Image / Wanx / Jimeng / NovelAI"]
+    D --> E["4. Side-by-side Assembly"]
+```
+
+### Comic / Dynamic Comic (`flows/make_comic.sop.md`)
+
+```mermaid
+flowchart LR
+    A["1. Brainstorm"] --> B["2. Character Anchor"]
+    B --> C["3. Panel-by-Panel<br/>×3 panels"]
+    C --> D["Panel Image<br/>Hunyuan Image"]
+    C --> E["Panel Audio<br/>Tencent TTS"]
+    D --> F["4. Comic Assembly<br/>ffmpeg"]
+```
+
+### Micro-Movie (`flows/make_micro_movie.sop.md`)
+
+```mermaid
+flowchart LR
+    A["1. Brainstorm"] --> B["2. Character Anchor"]
+    B --> C["3. Multi-Shot<br/>×3 shots"]
+    C --> D["Image → Hunyuan Image"]
+    C --> E["Video → Hunyuan Video"]
+    C --> F["Audio → Tencent TTS"]
+    D --> G["4. Lip Sync → HeyGen"]
+    F --> G
+    G --> H["5. Assemble"]
+```
+
+### Visual Novel (`flows/make_vn.sop.md`)
+
+```mermaid
+flowchart LR
+    A["1. Brainstorm"] --> B["2. Character Anchor"]
+    B --> C["3. Scene Loop<br/>×3 scenes"]
+    C --> D["Scene Image<br/>Hunyuan Image"]
+    C --> E["Scene Dialogue<br/>Tencent TTS"]
+    D --> F["4. VN Assembly<br/>ffmpeg"]
+```
 
 ---
 
-## Hardware
+## MCP Tool Reference
 
-| Component | Minimum | Recommended |
-|-----------|---------|-------------|
-| GPU | RTX 3090 24GB | RTX 4090 24GB |
-| RAM | 32GB | 64GB |
-| Storage | 200GB SSD | 1TB NVMe |
-| OS | Ubuntu 22.04 | Ubuntu 22.04 / Windows 11 |
+ShotFlow exposes 6 tools via its MCP server (`app.services.mcp_server`).
 
-CPU-only? Use cloud APIs (Kling, Runway) for the video stage.
+| Tool | Description | Parameters |
+|---|---|---|
+| `consistency_anchor` | Generate a character-consistency anchor image from a prompt | `prompt: str` |
+| `generate_image` | Generate an image via a named provider | `provider, prompt, size, ...` |
+| `generate_video` | Generate a video from text or an input image | `provider, prompt, image?, seconds, ...` |
+| `generate_audio` | Generate audio (TTS) from text | `provider, text, voice?` |
+| `lip_sync` | Sync audio with a talking-head video | `provider, video_url, audio_url` |
+| `assemble` | Combine assets into a final output | `shots: list[ShotAssets], output_type` |
+
+### MCP Transport
+
+The server listens on **stdio** by default (standard MCP transport). To connect
+with a streamable HTTP transport, configure your MCP client to proxy through
+the ShotFlow REST API or use an SSE bridge.
+
+### MCP Manifest
+
+Use `integration/shotflow.mcp.json` for zero-configuration discovery:
+
+```json
+{
+  "mcpServers": {
+    "shotflow": {
+      "command": "python",
+      "args": ["-m", "app.services.mcp_server"],
+      "cwd": "/path/to/shotflow",
+      "env": {
+        "PYTHONPATH": "backend"
+      }
+    }
+  }
+}
+```
 
 ---
 
-## Contributing & community
+## Agent Integration
 
-Issues and PRs welcome — new ComfyUI workflows, better prompts, script fixes, post-production notes, translations. See [`CONTRIBUTING.md`](./CONTRIBUTING.md) ([中文](./CONTRIBUTING.zh.md), includes the mandatory "check remote state before every push" rule and the monthly open-source health check) and [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md) ([中文](./CODE_OF_CONDUCT.zh.md)).
+ShotFlow is designed to be driven by external AI agents. Three integration
+paths are available.
 
-- Troubleshooting: [`TROUBLESHOOTING.md`](./TROUBLESHOOTING.md)
-- Cost estimates: [`COST_ANALYSIS.md`](./COST_ANALYSIS.md)
-- Changelog: [`CHANGELOG.md`](./CHANGELOG.md)
-- Security: [`SECURITY.md`](./SECURITY.md) ([中文](./SECURITY.zh.md))
-- Translations: [`docs/i18n/README.md`](./docs/i18n/README.md)
+### Path 1: WorkBuddy (via shotflow-driver skill)
 
-## Acknowledgements
+The `shotflow-driver` skill is installed at `~/.workbuddy/skills/shotflow-driver/`.
+When you tell WorkBuddy:
 
-Built on top of open-source work from:
-- [ComfyUI](https://github.com/comfyanonymous/ComfyUI) — node-based generation host
-- [Flux.1](https://github.com/black-forest-labs/flux) — image model
-- [Wan2.2](https://github.com/Wan-Video/Wan2.2) — video model
-- [FastAPI](https://fastapi.tiangolo.com/), [SQLAlchemy](https://www.sqlalchemy.org/), [Celery](https://docs.celeryq.dev/)
-- [React](https://react.dev/), [Vite](https://vitejs.dev/), [Ant Design](https://ant.design/)
-- [DaVinci Resolve](https://www.blackmagicdesign.com/products/davinciresolve), [Topaz Video AI](https://www.topazlabs.com/topaz-video-ai)
+> "用 ShotFlow 出一份奶龙视频"
 
-Cloud APIs: ElevenLabs, Suno, Kling (PiAPI). The example film *Echo of the Singularity* is case-study content, not affiliated with these projects.
+It reads `flows/make_nailong_video.sop.md`, calls the 6 MCP tools in sequence,
+and returns the final assembled output.
+
+### Path 2: Any MCP Client (Tencent Yuanqi, Dify, etc.)
+
+1. Copy `integration/shotflow.mcp.json` into your MCP client configuration.
+2. The client auto-discovers all 6 tools.
+3. The client reads the SOP flow files and orchestrates tool calls.
+
+### Path 3: REST API (Alibaba Bailian, custom agents)
+
+- Full OpenAPI 3.0 spec: `integration/openapi.json`
+- Base URL: `http://localhost:8000/api/v1`
+- Endpoints: `/generate`, `/anchor`, `/assemble`, `/spec`, `/tools/assets`
+
+### Edge Deployment
+
+For latency-sensitive scenarios (preview rendering, real-time dialogue),
+consider deploying the MCP server to edge functions:
+
+- **Tencent EdgeOne Makers**: Agent-native hosting with global CDN acceleration.
+- **Alibaba Function Compute**: Deploy ShotFlow tools as stateless functions
+  behind the MCP protocol, with confidential computing (TDX) for credential
+  protection.
+
+---
+
+## Project Structure
+
+```
+shotflow/
+├── backend/
+│   ├── app/
+│   │   ├── api/v1/           # REST endpoints
+│   │   ├── core/             # Config, database
+│   │   ├── models/           # SQLAlchemy models
+│   │   ├── schemas/          # Pydantic schemas
+│   │   └── services/
+│   │       ├── providers/    # 11 vendor integrations
+│   │       ├── mcp_server.py # MCP tool definitions
+│   │       ├── orchestrator.py
+│   │       └── tools_service.py
+│   ├── tests/
+│   └── requirements.txt
+├── frontend/
+│   └── src/
+│       ├── api/              # API client
+│       ├── layouts/          # App layout
+│       ├── pages/            # Generate, Workflows, Assets
+│       └── types/            # TypeScript types
+├── flows/                    # SOP flow files
+│   ├── make_video.sop.md
+│   ├── make_image_set.sop.md
+│   ├── make_comic.sop.md
+│   ├── make_micro_movie.sop.md
+│   └── make_vn.sop.md
+├── integration/              # Exposure package
+│   ├── shotflow.mcp.json
+│   ├── openapi.json
+│   ├── server_card.json
+│   └── AGENT_INTEGRATION_GUIDE.md
+├── .env.example
+├── LICENSE
+├── README.md
+└── CHANGELOG.md
+```
+
+---
+
+## FAQ
+
+**Q: Does ShotFlow require a GPU?**
+A: No. All generation is offloaded to cloud vendor APIs. For development and
+testing, SIMULATE mode returns placeholder assets without any GPU or keys.
+
+**Q: Can I add my own provider?**
+A: Yes. Create a new class inheriting from `BaseProvider`, implement
+`generate(kind, params)` returning `AssetResult`, and register it in
+`app/services/providers/__init__.py`.
+
+**Q: Is there authentication for the REST API?**
+A: Not built-in. Use a reverse proxy (Nginx, Caddy) with authentication for
+production deployments.
+
+**Q: Does ShotFlow store generated content?**
+A: Asset references (URLs, metadata) are stored in the database. The actual
+media files live on the vendor's platform or your configured storage.
+
+---
+
+## Contributing
+
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) and
+the [Code of Conduct](CODE_OF_CONDUCT.md) before submitting a pull request.
 
 ---
 
 ## License
 
-[Custom Non-Commercial License (CNCL) v1.0](./LICENSE).
+ShotFlow is open source under the **MIT License**. See [LICENSE](LICENSE) for
+full text.
 
-- No rights to use, copy, modify, distribute, sublicense, or operate the software are granted without prior written permission from the author.
+---
 
-The script, characters, shots, dialogue, and music in the example film are case-study content; replace them with your own for your own production.
+*ShotFlow — SOP-driven AIGC, agent-native by design.*
