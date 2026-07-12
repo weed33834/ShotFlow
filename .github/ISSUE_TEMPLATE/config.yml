@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: ShotFlow Discussions
+    url: https://github.com/MS33834/ShotFlow/discussions
+    about: Please ask questions and start discussions here.
