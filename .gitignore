@@ -111,6 +111,8 @@ backend/shotflow.db
 backend/test.db
 test_shotflow.db
 *.db-journal
+# 仓库根目录 SQLite（DATABASE_URL=sqlite:///./shotflow.db 在根目录生成）
+/shotflow.db
 # 前端依赖与构建产物
 node_modules/
 frontend/dist/

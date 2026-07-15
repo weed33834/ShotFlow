@@ -42,7 +42,6 @@ class GenerationTask(Base, IDMixin, TimestampMixin):
     """一次工具调用记录（对应 ShotFlow MCP 工具的一次执行）。"""
 
     __tablename__ = "generation_tasks"
-    __table_args__ = (Index("ix_generation_tasks_status", "status"),)
 
     project_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True

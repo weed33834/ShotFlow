@@ -40,6 +40,7 @@ class Orchestrator:
                 params={"prompt": spec_data["characters"][0]["anchor_prompt"]},
             ),
             db,
+            spec_id=spec.id,
         )
 
         # S4 并行生成（每镜 image + video + audio，SIMULATE 占位）
@@ -52,6 +53,7 @@ class Orchestrator:
                         params={"prompt": shot["image_prompt"]},
                     ),
                     db,
+                    spec_id=spec.id,
                 )
                 await svc.run_tool(
                     ToolGenerateReq(
@@ -60,6 +62,7 @@ class Orchestrator:
                         params={"prompt": shot["video_prompt"], "duration": shot["duration"]},
                     ),
                     db,
+                    spec_id=spec.id,
                 )
                 await svc.run_tool(
                     ToolGenerateReq(
@@ -68,6 +71,7 @@ class Orchestrator:
                         params={"text": shot["audio"]["text"], "voice": shot["audio"]["voice"]},
                     ),
                     db,
+                    spec_id=spec.id,
                 )
 
         # S5 组装成片

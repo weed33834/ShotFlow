@@ -7,9 +7,8 @@
 """
 
 from pathlib import Path
-from typing import List
 
-from pydantic import field_validator, model_validator
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # 项目根目录（backend/ 的上一级，即仓库根）
@@ -60,20 +59,27 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 默认 24 小时
 
     # ===== 跨域 =====
-    # 前端开发服务器地址，生产环境通过 .env 收紧
-    CORS_ORIGINS: List[str] = [
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-    ]
+    # 前端开发服务器地址，生产环境通过 .env 收紧。
+    # 用 str 接收：pydantic-settings 对复杂类型（list）会先按 JSON 预解析，
+    # 导致 .env 中的逗号串 "a,b,c" 直接报 SettingsError。改为 str 后自行 split，
+    # 兼容逗号串与 JSON 数组串两种写法。
+    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173"
 
-    @field_validator("CORS_ORIGINS", mode="before")
-    @classmethod
-    def _split_origins(cls, v):
-        """允许 .env 中以逗号分隔的字符串。"""
-        if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",") if origin.strip()]
-        return v
+    @property
+    def cors_origins(self) -> list[str]:
+        """解析 CORS_ORIGINS 为列表，兼容逗号串与 JSON 数组串。"""
+        raw = self.CORS_ORIGINS
+        if isinstance(raw, list):
+            return raw
+        raw = raw.strip()
+        if raw.startswith("["):
+            import json
+
+            try:
+                return [o for o in json.loads(raw) if o]
+            except Exception:
+                pass
+        return [o.strip() for o in raw.split(",") if o.strip()]
 
     @model_validator(mode="after")
     def _guard_secret_key(self):

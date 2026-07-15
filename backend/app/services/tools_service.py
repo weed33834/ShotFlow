@@ -33,11 +33,11 @@ def _provider_kwargs(provider: str) -> dict:
     return mapping.get(provider, {})
 
 
-async def run_tool(req: ToolGenerateReq, db, tool: str = "generate") -> ToolResult:
+async def run_tool(req: ToolGenerateReq, db, tool: str = "generate", spec_id: int | None = None) -> ToolResult:
     """执行一次生成工具，存 GenerationTask + Asset，返回结果。"""
     provider = get_provider(req.provider, simulate=settings.SIMULATE_MODE, **_provider_kwargs(req.provider))
     # 记录任务
-    task = GenerationTask(tool=tool, provider=req.provider, params=req.params, status="running")
+    task = GenerationTask(tool=tool, provider=req.provider, params=req.params, status="running", spec_id=spec_id)
     db.add(task)
     db.commit()
     db.refresh(task)
@@ -64,14 +64,14 @@ async def run_tool(req: ToolGenerateReq, db, tool: str = "generate") -> ToolResu
     return ToolResult(asset_id=asset.id, url=result.url, provider=result.provider, meta=result.meta)
 
 
-async def anchor(req: ToolGenerateReq, db) -> ToolResult:
+async def anchor(req: ToolGenerateReq, db, spec_id: int | None = None) -> ToolResult:
     """一致性锚定（角色/风格设定图）。"""
-    return await run_tool(req, db, tool="consistency_anchor")
+    return await run_tool(req, db, tool="consistency_anchor", spec_id=spec_id)
 
 
 async def assemble(req: AssembleReq, db) -> ToolResult:
     """组装成片：ffmpeg 拼接 + 混音 + 硬压字幕（SIMULATE 返回占位）。"""
-    task = GenerationTask(tool="assemble", provider="ffmpeg", params=req.model_dump(), status="running")
+    task = GenerationTask(tool="assemble", provider="ffmpeg", params=req.model_dump(), status="running", spec_id=req.spec_id)
     db.add(task)
     db.commit()
     db.refresh(task)
