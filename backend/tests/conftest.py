@@ -10,6 +10,10 @@ import os
 os.environ.setdefault("DATABASE_URL", "sqlite://")
 # 测试用固定密钥，避免触发生产环境的默认密钥拦截（config._guard_secret_key）
 os.environ.setdefault("SECRET_KEY", "ci-test-secret-not-for-production-use")
+# 测试环境钉死 HAS_GPU=True：默认派发走本地 wan_i2v，与 config 默认值及
+# test_dispatch_default_provider 等用例预期一致。进程环境变量优先级高于 .env 文件，
+# 即使 .env 设为 HAS_GPU=false（无 GPU 本地开发）也不影响测试结果的确定性。
+os.environ["HAS_GPU"] = "true"
 
 import app.models  # noqa: F401  # 注册所有模型
 import pytest

@@ -1,0 +1,69 @@
+{
+  "3": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "wan2.2_i2v_720p.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "4": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "wan2.2_clip.safetensors",
+      "type": "wan"
+    }
+  },
+  "6": {
+    "class_type": "WanImageToVideo",
+    "inputs": {
+      "length": 120,
+      "width": 832,
+      "height": 480,
+      "model": ["3", 0]
+    }
+  },
+  "5": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "",
+      "clip": ["4", 0]
+    }
+  },
+  "7": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "",
+      "clip": ["4", 0]
+    }
+  },
+  "8": {
+    "class_type": "KSampler",
+    "inputs": {
+      "seed": 0,
+      "steps": 30,
+      "cfg": 0.5,
+      "sampler_name": "euler",
+      "scheduler": "normal",
+      "denoise": 1.0,
+      "model": ["6", 0],
+      "positive": ["5", 0],
+      "negative": ["7", 0],
+      "latent_image": ["6", 0]
+    }
+  },
+  "9": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": ["8", 0],
+      "vae": ["4", 0]
+    }
+  },
+  "10": {
+    "class_type": "SaveAnimatedWEBP",
+    "inputs": {
+      "fps": 24,
+      "images": ["9", 0],
+      "filename_prefix": "Wan22"
+    }
+  }
+}

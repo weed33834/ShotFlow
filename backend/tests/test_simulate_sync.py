@@ -17,6 +17,7 @@ def test_enqueue_simulate_runs_synchronously_without_broker(db_session, monkeypa
     """无 broker 时 SIMULATE 任务应直接 completed（进度 100，无错误）。"""
     import app.db.session as db_mod
     import app.tasks.render_tasks as render_tasks_mod
+    from app.tasks import render_tasks as rt
 
     # 让后台任务打开的 SessionLocal 与测试会话共享同一内存库，
     # 否则 SQLite 内存库各自独立，run_render_task.run 看不到刚创建的 task。
@@ -24,6 +25,13 @@ def test_enqueue_simulate_runs_synchronously_without_broker(db_session, monkeypa
     SharedSessionLocal = sessionmaker(bind=shared_engine, autoflush=False, future=True)
     monkeypatch.setattr(db_mod, "SessionLocal", SharedSessionLocal)
     monkeypatch.setattr(render_tasks_mod, "SessionLocal", SharedSessionLocal)
+
+    # 模拟 broker 不可达：让 .delay 抛异常，触发 _dispatch_to_celery 的 SIMULATE 同步回退。
+    # 覆盖 conftest 中让 .delay 返回假结果的默认 mock（默认 mock 用于"异步派发"类用例）。
+    def _delay_raises(*args, **kwargs):
+        raise RuntimeError("Celery broker 不可达（测试模拟）")
+
+    monkeypatch.setattr(rt.run_render_task, "delay", _delay_raises)
 
     project = Project(title="SIM测试项目", status="pre_production")
     db_session.add(project)
@@ -48,11 +56,18 @@ def test_enqueue_simulate_non_keyframe_also_completes(db_session, monkeypatch):
     """video_i2v 等走 provider 路由的任务在 SIMULATE 下同样同步完成。"""
     import app.db.session as db_mod
     import app.tasks.render_tasks as render_tasks_mod
+    from app.tasks import render_tasks as rt
 
     shared_engine = db_session.get_bind()
     SharedSessionLocal = sessionmaker(bind=shared_engine, autoflush=False, future=True)
     monkeypatch.setattr(db_mod, "SessionLocal", SharedSessionLocal)
     monkeypatch.setattr(render_tasks_mod, "SessionLocal", SharedSessionLocal)
+
+    # 同上：模拟 broker 不可达，触发 SIMULATE 同步回退
+    def _delay_raises(*args, **kwargs):
+        raise RuntimeError("Celery broker 不可达（测试模拟）")
+
+    monkeypatch.setattr(rt.run_render_task, "delay", _delay_raises)
 
     project = Project(title="SIM测试项目2", status="pre_production")
     db_session.add(project)

@@ -1,0 +1,123 @@
+# ShotFlow 工作流参数化配置
+#
+# 非程序员编辑本文件即可调整各工作流的生成参数（steps/cfg/frames/fps/负向提示词等），
+# 无需改动 Python 代码。build_workflow 按 node_class + node_input + node_index 定位节点注入。
+#
+# 字段说明：
+#   name        工作流唯一名（API 按 name 查询）
+#   task_type   关联的任务类型（keyframe / video_i2v / video_t2v）
+#   file_path   工作流 API JSON 相对仓库根的路径（inject_params 读取并注入）
+#   parameters  参数规格列表：
+#     key          参数名（与前端/接口约定一致）
+#     type         text | integer | float | boolean
+#     required     是否必填（必填缺失直接 422 / ValueError，不送 ComfyUI 浪费算力）
+#     default      默认值（写入 API 返回的 defaults；缺省时保留 JSON 原值）
+#     min / max    数值范围（含边界）
+#     node_class   目标节点 class_type
+#     node_input   目标节点 inputs 下的字段名
+#     node_index   同名 class 多个节点时的序号（如正向/负向 CLIPTextEncode）
+
+workflows:
+  - name: Flux_Character_Consistency
+    task_type: keyframe
+    file_path: 03_Workflows/api/Flux_Character_Consistency_api.json
+    description: Flux 角色一致性关键帧（图生图），用于固定角色外观的静态分镜。
+    parameters:
+      - key: prompt
+        type: text
+        required: true
+        node_class: CLIPTextEncode
+        node_input: text
+        node_index: 0
+      - key: negative_prompt
+        type: text
+        required: false
+        node_class: CLIPTextEncode
+        node_input: text
+        node_index: 1
+      - key: seed
+        type: integer
+        required: true
+        default: 0
+        node_class: KSampler
+        node_input: seed
+        node_index: 0
+      - key: steps
+        type: integer
+        required: false
+        default: 30
+        min: 1
+        max: 50
+        node_class: KSampler
+        node_input: steps
+        node_index: 0
+      - key: cfg
+        type: float
+        required: false
+        default: 0.5
+        min: 0.0
+        max: 20.0
+        node_class: KSampler
+        node_input: cfg
+        node_index: 0
+
+  - name: Wan22_Dual_Expert_Video
+    task_type: video_i2v
+    file_path: 03_Workflows/api/Wan22_Dual_Expert_Video_api.json
+    description: Wan2.2 双专家图生视频工作流，由首帧 + 提示词生成短视频片段。
+    parameters:
+      - key: prompt
+        type: text
+        required: true
+        node_class: CLIPTextEncode
+        node_input: text
+        node_index: 0
+      - key: negative_prompt
+        type: text
+        required: false
+        node_class: CLIPTextEncode
+        node_input: text
+        node_index: 1
+      - key: seed
+        type: integer
+        required: true
+        default: 0
+        node_class: KSampler
+        node_input: seed
+        node_index: 0
+      - key: steps
+        type: integer
+        required: false
+        default: 30
+        min: 1
+        max: 50
+        node_class: KSampler
+        node_input: steps
+        node_index: 0
+      - key: cfg
+        type: float
+        required: false
+        default: 0.5
+        min: 0.0
+        max: 10.0
+        node_class: KSampler
+        node_input: cfg
+        node_index: 0
+      - key: frames
+        type: integer
+        required: false
+        default: 120
+        min: 9
+        max: 161
+        node_class: WanImageToVideo
+        node_input: length
+        node_index: 0
+      - key: fps
+        type: integer
+        required: false
+        default: 24
+        min: 8
+        max: 30
+        node_class: SaveAnimatedWEBP
+        node_input: fps
+        node_index: 0
