@@ -1,0 +1,5 @@
+# 视频质量巡检依赖（08_Automation）
+# 与 backend/requirements.txt 中「复用现有生成脚本所需运行时依赖」对齐。
+opencv-python>=4.9.0
+numpy>=1.26.0
+# ffprobe 由系统 ffmpeg 提供，不在此列；请另装 ffmpeg（apt install ffmpeg / brew install ffmpeg）
