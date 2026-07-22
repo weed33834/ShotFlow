@@ -145,7 +145,7 @@ graph TB
 ### 1. クローンとセットアップ
 
 ```bash
-git clone https://github.com/MS33834/ShotFlow.git
+git clone https://github.com/weed33834/ShotFlow.git
 cd ShotFlow
 
 # バックエンド

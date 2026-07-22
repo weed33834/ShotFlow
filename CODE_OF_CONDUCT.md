@@ -52,7 +52,7 @@ an individual is officially representing the community in public spaces.
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported to the community leaders responsible for enforcement at
-[the GitHub Issues page](https://github.com/MS33834/ShotFlow/issues).
+[the GitHub Issues page](https://github.com/weed33834/ShotFlow/issues).
 All complaints will be reviewed and investigated promptly and fairly.
 
 ## Attribution

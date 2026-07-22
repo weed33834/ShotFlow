@@ -11,22 +11,24 @@ license = {text = "Custom Non-Commercial License (CNCL) v1.0"}
 authors = [
     {name = "ShotFlow Team"},
 ]
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: Creative Industry",
     "License :: Other/Proprietary License",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Multimedia :: Video",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 
 [project.urls]
-Homepage = "https://github.com/MS33834/ShotFlow"
-Repository = "https://github.com/MS33834/ShotFlow"
-Issues = "https://github.com/MS33834/ShotFlow/issues"
+Homepage = "https://github.com/weed33834/ShotFlow"
+Repository = "https://github.com/weed33834/ShotFlow"
+Issues = "https://github.com/weed33834/ShotFlow/issues"
 
 [tool.black]
 line-length = 100

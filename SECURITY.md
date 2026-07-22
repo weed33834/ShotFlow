@@ -14,10 +14,10 @@ We take security vulnerabilities seriously. If you discover a security issue in 
 **How to report:**
 
 1. Open a draft security advisory on GitHub:
-   https://github.com/MS33834/ShotFlow/security/advisories/new
+   https://github.com/weed33834/ShotFlow/security/advisories/new
 
 2. Alternatively, contact the maintainers directly through the project's
-   [discussion page](https://github.com/MS33834/ShotFlow/discussions).
+   [discussion page](https://github.com/weed33834/ShotFlow/discussions).
 
 **What to include:**
 

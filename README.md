@@ -2,8 +2,10 @@
 
 > Flow-file-driven AIGC orchestration platform. External agents read SOP definitions and call vendor-agnostic generation tools — no hardcoded brain, full reproducibility.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![CI](https://github.com/weed33834/ShotFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/weed33834/ShotFlow/actions/workflows/ci.yml)
+[![License: CNCL-1.0](https://img.shields.io/badge/License-CNCL--1.0-yellow.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Node 22+](https://img.shields.io/badge/node-22+-green.svg)](https://nodejs.org/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 English · [中文](README.zh-CN.md) · [日本語](README.ja.md)
@@ -163,7 +165,7 @@ full pipeline without any keys.
 ### 1. Clone and Set Up
 
 ```bash
-git clone https://github.com/MS33834/ShotFlow.git
+git clone https://github.com/weed33834/ShotFlow.git
 cd ShotFlow
 
 # Backend
