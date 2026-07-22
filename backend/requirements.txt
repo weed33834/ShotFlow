@@ -33,7 +33,7 @@ tencentcloud-sdk-python>=3.0.0
 # 配置与校验
 pydantic==2.13.4
 pydantic-settings==2.14.2
-python-dotenv>=1.1.0
+python-dotenv>=1.2.2
 # EmailStr 类型校验依赖（pydantic 不自带）
 email-validator>=2.3.0
 
