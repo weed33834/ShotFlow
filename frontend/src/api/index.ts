@@ -4,6 +4,7 @@ import type {
   CaseStudy,
   CaseStudyCreate,
   CaseStudyUpdate,
+  CinematicKeywords,
   DailyBrief,
   DailyBriefCreate,
   Dialogue,
@@ -18,13 +19,16 @@ import type {
   ProvidersConfig,
   QaReport,
   QaReportCreate,
+  QualityLevelsResponse,
   QueueStats,
   RenderTask,
   RenderTaskCreate,
   RenderTaskStatus,
+  SceneTemplatesResponse,
   Shot,
   ShotCreate,
   ShotUpdate,
+  StylePresetsResponse,
   ToolResult,
   VideoClip,
   VideoClipCreate,
@@ -97,6 +101,8 @@ export const caseStudiesApi = {
 
 // 一句话出片 — 自然语言生成 + 工具资产
 export const generateApi = {
+  // 生成：payload 透传所有字段，包含电影级画质增强参数
+  // （style_preset / scene_template / quality_level / transition），由 GenerateRequest 类型约束
   generate: (payload: GenerateRequest) =>
     http.post<GenerateResponse>("/generate", payload).then((r) => r.data),
   // 批量生成：同一 prompt 生成 count 个变体
@@ -159,4 +165,40 @@ export const toolsApi = {
       publish_id: string;
       error: string;
     }>("/tools/publish", payload).then((r) => r.data),
+  // 电影级提示词预设（与下方独立函数同源，保持 toolsApi 命名空间完整）
+  stylePresets: () => getStylePresets(),
+  sceneTemplates: () => getSceneTemplates(),
+  qualityLevels: () => getQualityLevels(),
+  cinematicKeywords: () => getCinematicKeywords(),
 };
+
+// ===== 电影级提示词系统 API（GET /tools/prompts/*）=====
+// 独立导出函数，供前端选择器组件按需调用
+
+// 风格预设列表：cinematic/cyberpunk/anime/ink_wash/ghibli/...
+export function getStylePresets() {
+  return http
+    .get<StylePresetsResponse>("/tools/prompts/styles")
+    .then((r) => r.data);
+}
+
+// 场景模板列表：product/food/travel/knowledge/story/city/nature/action/interview/tutorial
+export function getSceneTemplates() {
+  return http
+    .get<SceneTemplatesResponse>("/tools/prompts/scenes")
+    .then((r) => r.data);
+}
+
+// 质量等级列表：standard/hd/4k/8k
+export function getQualityLevels() {
+  return http
+    .get<QualityLevelsResponse>("/tools/prompts/quality-levels")
+    .then((r) => r.data);
+}
+
+// 镜头语言词库：光影/景别/运镜/氛围
+export function getCinematicKeywords() {
+  return http
+    .get<CinematicKeywords>("/tools/prompts/keywords")
+    .then((r) => r.data);
+}

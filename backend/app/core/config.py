@@ -172,6 +172,26 @@ class Settings(BaseSettings):
     # ffmpeg 二进制路径，空则从 PATH 查找
     FFMPEG_PATH: str = ""
 
+    # ===== 开源增强工具（二期，可选依赖，缺失时优雅降级）=====
+    # Real-ESRGAN 超分二进制（realesrgan-ncnn-vulkan）路径，空则从 PATH 查找；
+    # 未安装时 enhance_service 会跳过超分步骤并告警，不中断主链路。
+    REALESRGAN_PATH: str = ""
+    # RIFE 帧插值二进制（rife-ncnn-vulkan）路径，空则从 PATH 查找；
+    # 未安装时跳过补帧步骤并告警，不中断主链路。
+    RIFE_PATH: str = ""
+
+    # ===== ASR 语音识别 Provider 选择 =====
+    # funasr: 优先用本地 FunASR（paraformer）模型
+    # whisper: 优先用本地 faster-whisper
+    # openai: 强制走 OpenAI Whisper API
+    # auto: FunASR → faster-whisper → OpenAI API 逐级回落（默认，最稳）
+    ASR_PROVIDER: str = "auto"
+
+    # ===== GPT-SoVITS 语音克隆本地 API 服务 =====
+    # GPT-SoVITS 以独立 API 服务形式部署（默认 http://127.0.0.1:9880），
+    # 留空时 provider 走 simulate 占位，不阻断链路。
+    GPTSOVITS_API_URL: str = ""
+
     @property
     def is_sqlite(self) -> bool:
         return self.DATABASE_URL.startswith("sqlite")

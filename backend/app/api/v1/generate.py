@@ -29,6 +29,10 @@ async def generate(req: GenerateReq, db: Session = Depends(get_db)):
         subtitle_enabled=req.subtitle_enabled,
         bgm_enabled=req.bgm_enabled,
         local_asset_ids=req.local_asset_ids,
+        style_preset=req.style_preset,
+        scene_template=req.scene_template,
+        quality_level=req.quality_level,
+        transition=req.transition,
     )
     return {
         "spec_id": spec_id,
@@ -56,6 +60,10 @@ class BatchGenerateReq(BaseModel):
     subtitle_enabled: bool = True
     bgm_enabled: bool = True
     local_asset_ids: list[int] = Field(default_factory=list)
+    style_preset: str = ""
+    scene_template: str = ""
+    quality_level: str = "standard"
+    transition: str = "fade"
 
 
 @router.post("/batch")
@@ -80,6 +88,10 @@ async def batch_generate(req: BatchGenerateReq, db: Session = Depends(get_db)):
                 subtitle_enabled=req.subtitle_enabled,
                 bgm_enabled=req.bgm_enabled,
                 local_asset_ids=req.local_asset_ids,
+                style_preset=req.style_preset,
+                scene_template=req.scene_template,
+                quality_level=req.quality_level,
+                transition=req.transition,
             )
             return {"spec_id": spec_id, "error": None}
         except Exception as exc:

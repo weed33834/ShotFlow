@@ -353,6 +353,10 @@ def _normalize_spec(spec: dict[str, Any], nl_prompt: str, output_type: str) -> d
     编排器 run() 会访问 characters[0].anchor_prompt、shot.image_prompt /
     video_prompt / duration / audio.text / audio.voice / subtitle，缺一即 KeyError。
     LLM 可能漏字段或返回空结构，这里统一兜底，避免运行时崩。
+
+    兼容两套 LLM 输出：
+    - 旧模板：characters[].desc, scenes[].name, shot.subtitle, shot.voice_text
+    - 新增强模板：characters[].appearance, scenes[].title, shot.audio.text（无独立 subtitle）
     """
     # 角色兜底
     chars = spec.get("characters") or []
@@ -362,7 +366,8 @@ def _normalize_spec(spec: dict[str, Any], nl_prompt: str, output_type: str) -> d
         if not isinstance(c, dict):
             continue
         c.setdefault("name", "主角")
-        c.setdefault("desc", "")
+        # 兼容新模板的 appearance 字段与旧模板的 desc 字段
+        c.setdefault("desc", c.get("appearance", ""))
         c.setdefault("anchor_prompt", f"{c.get('name', '主角')}，圆润卡通风格，高饱和色彩，夸张表情")
         # ref_asset_ids 是 spec.data 里的占位字段，保留空列表保持向后兼容。
         c.setdefault("ref_asset_ids", [])
@@ -385,7 +390,8 @@ def _normalize_spec(spec: dict[str, Any], nl_prompt: str, output_type: str) -> d
         if not isinstance(sc, dict):
             continue
         sc.setdefault("index", si + 1)
-        sc.setdefault("name", f"场景{si + 1}")
+        # 兼容新模板的 title 字段与旧模板的 name 字段
+        sc.setdefault("name", sc.get("title", f"场景{si + 1}"))
         sc.setdefault("description", "")
         shots = sc.get("shots") or []
         if not isinstance(shots, list):
@@ -398,8 +404,13 @@ def _normalize_spec(spec: dict[str, Any], nl_prompt: str, output_type: str) -> d
             sh.setdefault("image_prompt", nl_prompt)
             # video_prompt 缺失时复用 image_prompt，保证图生视频有输入。
             sh.setdefault("video_prompt", sh["image_prompt"])
-            # subtitle / voice_text 互为兜底。
-            vt = sh.get("voice_text") or sh.get("subtitle") or nl_prompt
+            # subtitle / voice_text 互为兜底，兼容新模板（仅 audio.text）与旧模板（独立字段）
+            vt = sh.get("voice_text") or sh.get("subtitle")
+            if not vt:
+                audio_dict = sh.get("audio")
+                if isinstance(audio_dict, dict):
+                    vt = audio_dict.get("text", "")
+            vt = vt or nl_prompt
             sh.setdefault("voice_text", vt)
             sh.setdefault("subtitle", vt)
             # audio 必须是 dict 且含 text/voice/type，下游 shot["audio"]["text"] 直接取。
@@ -407,6 +418,7 @@ def _normalize_spec(spec: dict[str, Any], nl_prompt: str, output_type: str) -> d
             if not isinstance(audio, dict):
                 audio = {}
             audio.setdefault("text", sh.get("voice_text") or sh.get("subtitle") or nl_prompt)
+            # 新模板的 voice 用 edge-tts 声音名（zh-CN-YunxiNeural），旧模板用 child_cn
             audio.setdefault("voice", "child_cn")
             audio.setdefault("type", "tts")
             sh["audio"] = audio
@@ -437,17 +449,34 @@ def _normalize_spec(spec: dict[str, Any], nl_prompt: str, output_type: str) -> d
     return spec
 
 
-async def generate_script_spec(nl_prompt: str, output_type: str = "video") -> dict[str, Any]:
+async def generate_script_spec(
+    nl_prompt: str,
+    output_type: str = "video",
+    style_preset: str = "",
+    scene_template: str = "",
+    quality_level: str = "standard",
+) -> dict[str, Any]:
     """用 LLM 生成编排规格（spec）：场景、镜头、image_prompt、subtitle、配音文本。
 
     返回格式与当前 _brain() 返回的下游可消费字段一致（characters[].anchor_prompt、
     scenes[].shots[].{image_prompt,video_prompt,subtitle,audio,duration}），
     额外含 title/voice_text 等富字段。编排器据此合并 wrapper 字段后存 spec.data。
+
+    Args:
+        nl_prompt: 用户一句话需求
+        output_type: 产出类型（video/image_set/micro_movie/comic/vn）
+        style_preset: 风格预设名（cinematic/cyberpunk/anime...），注入电影级画面描述
+        scene_template: 场景模板名（product/food/travel...），控制镜头节奏与景别组合
+        quality_level: 质量等级（standard/hd/4k/8k），控制技术参数描述
     """
     if not nl_prompt:
         nl_prompt = "生成一段短视频"
-    system_prompt = _SYSTEM_PROMPT_TEMPLATE.format(output_type=output_type)
-    user_prompt = f"用户需求：{nl_prompt}"
+
+    # 使用增强版 System Prompt：注入风格预设、场景模板、镜头语言词库
+    from app.prompts import build_enhanced_system_prompt
+
+    system_prompt = build_enhanced_system_prompt(style_preset, scene_template, quality_level)
+    user_prompt = f"用户需求：{nl_prompt}\n产出类型：{output_type}"
 
     # 脚本生成需一定创造性但又要结构稳定，temperature 取 0.7 平衡。
     raw = await chat_completion(system_prompt, user_prompt, temperature=0.7)

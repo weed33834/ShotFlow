@@ -1,0 +1,69 @@
+product:
+  name: "产品展示"
+  shot_rhythm: "慢节奏，每镜 3-5 秒"
+  shot_sequence: "特写→旋转展示→全景→使用场景"
+  lighting: "影棚柔光 + 边缘光，突出产品质感"
+  transition: "fade"
+
+food:
+  name: "美食制作"
+  shot_rhythm: "中节奏，每镜 2-4 秒"
+  shot_sequence: "食材微距→制作过程→摆盘特写→成品全景"
+  lighting: "暖色自然光，侧逆光突出食物质感"
+  transition: "wipeleft"
+
+travel:
+  name: "旅行vlog"
+  shot_rhythm: "快节奏，每镜 2-3 秒"
+  shot_sequence: "航拍定场→街道跟拍→景点特写→人物互动"
+  lighting: "黄金时刻自然光，充分利用日落日出"
+  transition: "slideleft"
+
+knowledge:
+  name: "知识科普"
+  shot_rhythm: "中节奏，每镜 4-6 秒"
+  shot_sequence: "中景讲解→图示特写→实例演示→总结全景"
+  lighting: "柔光均匀照明，清晰明亮"
+  transition: "fade"
+
+story:
+  name: "人物故事"
+  shot_rhythm: "慢节奏，每镜 4-8 秒"
+  shot_sequence: "环境定场→人物中景→表情特写→动作全景"
+  lighting: "明暗对比/边缘光，戏剧性光影"
+  transition: "fade"
+
+city:
+  name: "城市探索"
+  shot_rhythm: "快节奏，每镜 2-4 秒"
+  shot_sequence: "天际线航拍→FPV穿梭→街道手持→建筑仰拍"
+  lighting: "霓虹/夜景，蓝紫色暮光"
+  transition: "slideup"
+
+nature:
+  name: "自然风光"
+  shot_rhythm: "慢节奏，每镜 5-10 秒"
+  shot_sequence: "航拍大远景→延时摄影→微距细节→日出日落"
+  lighting: "黄金时刻/体积光，充分利用自然光影"
+  transition: "fade"
+
+action:
+  name: "动作场景"
+  shot_rhythm: "快节奏，每镜 1-3 秒"
+  shot_sequence: "快切多角度→慢动作特写→一镜到底→航拍追拍"
+  lighting: "高对比硬光，紧张氛围"
+  transition: "diagonal"
+
+interview:
+  name: "访谈对话"
+  shot_rhythm: "慢节奏，每镜 5-10 秒"
+  shot_sequence: "过肩镜头→面部特写→反应镜头→环境交代"
+  lighting: "柔光影棚光，三点布光"
+  transition: "fade"
+
+tutorial:
+  name: "教程演示"
+  shot_rhythm: "中节奏，每镜 3-5 秒"
+  shot_sequence: "全景操作→手部特写→屏幕录制→成品展示"
+  lighting: "均匀明亮，无阴影干扰"
+  transition: "fade"

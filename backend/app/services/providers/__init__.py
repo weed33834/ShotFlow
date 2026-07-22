@@ -7,6 +7,7 @@ ShotFlow 只负责「真正出图/出视频/出音频」这一步，通过 MCP �
 
 from app.services.providers.base import AssetResult, BaseProvider
 from app.services.providers.cosyvoice_provider import CosyVoiceProvider
+from app.services.providers.gptsovits_provider import GPTSoVITSProvider
 from app.services.providers.heygen_provider import HeygenProvider
 from app.services.providers.hunyuan_image import HunyuanImageProvider
 from app.services.providers.hunyuan_video_provider import HunyuanVideoProvider
@@ -27,6 +28,7 @@ _PROVIDERS: dict[str, type[BaseProvider]] = {
     "tencent_tts": TencentTtsProvider,       # 腾讯云语音合成 (audio)
     "wanx": WanxProvider,                     # 阿里通义万相 (image / video)
     "cosyvoice": CosyVoiceProvider,            # 阿里 CosyVoice 语音克隆 (audio)
+    "gptsovits": GPTSoVITSProvider,            # 开源 GPT-SoVITS 语音克隆 (audio，本地 API)
     "kling": KlingProvider,                   # 可灵 (video / anchor / lipsync)
     "jimeng": JimengProvider,                 # 即梦 (image / video)
     "runway": RunwayProvider,                 # Runway (video)

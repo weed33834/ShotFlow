@@ -35,6 +35,13 @@ class AssembleReq(ORMBase):
     video_aspect: str = ""
     # 是否包含背景音乐（False 时 assemble 跳过 BGM 轨）
     bgm_enabled: bool = True
+    # 转场效果（xfade 滤镜名）：fade/wipeleft/wiperight/slideup/slidedown/
+    # circleopen/circleclose/distance/zoomin 等，空或 none 则不用转场
+    transition: str = ""
+    # 是否对静态图片启用 Ken Burns（zoompan 缓慢推拉）效果
+    ken_burns: bool = True
+    # 色彩分级预设：none/vintage/cross_process/teal_orange/high_contrast/warm_film
+    color_grading: str = "none"
 
 
 class GenerateReq(ORMBase):
@@ -51,6 +58,16 @@ class GenerateReq(ORMBase):
     # 用户上传的本地素材 asset_id 列表（图片/视频/音频），
     # S5 组装时会追加到生成资产之后参与拼接/混音
     local_asset_ids: list[int] = Field(default_factory=list)
+    # 电影级提示词参数（前端选择，注入 LLM System Prompt）
+    # 风格预设：cinematic/cyberpunk/anime/ink_wash/ghibli/oil_painting/realistic/
+    #           watercolor/documentary/wes_anderson/scifi/fantasy/noir
+    style_preset: str = ""
+    # 场景模板：product/food/travel/knowledge/story/city/nature/action/interview/tutorial
+    scene_template: str = ""
+    # 质量等级：standard(1080p) / hd(1080p+bokeh) / 4k(4K HDR) / 8k(8K HDR Dolby Vision)
+    quality_level: str = "standard"
+    # 转场效果：fade/wipeleft/slideright/circleopen/distance 等 xfade 效果名
+    transition: str = "fade"
 
 
 class SpecSaveReq(ORMBase):

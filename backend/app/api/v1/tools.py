@@ -2,6 +2,7 @@
 
 这些路由同时是 MCP server 的底层能力来源（见 services/mcp_server.py）"""
 
+import asyncio
 import shutil
 from pathlib import Path
 
@@ -122,6 +123,58 @@ def get_providers() -> dict:
     }
 
 
+# ===== 提示词预设管理 =====
+
+
+@router.get("/prompts/styles")
+def list_style_presets() -> dict:
+    """返回所有可用的风格预设，供前端风格选择器渲染。"""
+    from app.prompts import get_style_presets
+
+    presets = get_style_presets()
+    return {
+        "styles": [
+            {"key": k, **v}
+            for k, v in presets.items()
+        ]
+    }
+
+
+@router.get("/prompts/scenes")
+def list_scene_templates() -> dict:
+    """返回所有可用的场景模板，供前端场景选择器渲染。"""
+    from app.prompts import get_scene_templates
+
+    templates = get_scene_templates()
+    return {
+        "scenes": [
+            {"key": k, **v}
+            for k, v in templates.items()
+        ]
+    }
+
+
+@router.get("/prompts/keywords")
+def list_cinematic_keywords() -> dict:
+    """返回镜头语言词库，供前端提示词增强预览/手动编辑使用。"""
+    from app.prompts import get_cinematic_keywords
+
+    return get_cinematic_keywords()
+
+
+@router.get("/prompts/quality-levels")
+def list_quality_levels() -> dict:
+    """返回可选的质量等级列表。"""
+    return {
+        "levels": [
+            {"key": "standard", "label": "标准 1080p", "desc": "高清画质"},
+            {"key": "hd", "label": "高清 1080p+", "desc": "高清画质 + 浅景深"},
+            {"key": "4k", "label": "4K HDR", "desc": "超高细节 + 电影级调色 + ACES"},
+            {"key": "8k", "label": "8K HDR", "desc": "极清 + Dolby Vision + 光追"},
+        ]
+    }
+
+
 # ===== editing_steps JSON 编辑引擎 =====
 
 
@@ -167,6 +220,109 @@ async def apply_edit(
     db.commit()
     db.refresh(new_asset)
     return {"asset_id": new_asset.id, "output_path": output_path, "status": "edited"}
+
+
+# ===== 视频增强（Real-ESRGAN 超分 + RIFE 补帧）=====
+
+
+class EnhanceReq(BaseModel):
+    """视频增强请求。"""
+
+    asset_id: int
+    # 超分倍数（2/3/4），仅 Real-ESRGAN 可用时生效
+    scale: int = 2
+    # 目标帧率（如 60），仅 RIFE 可用时生效
+    fps_target: int = 60
+    # 输出路径（空则落到 STORAGE_DIR/enhanced/）
+    output_path: str = ""
+
+
+@router.post("/enhance")
+async def enhance_video_asset(
+    req: EnhanceReq,
+    db: Session = Depends(get_db),
+) -> dict:
+    """对视频资产应用超分辨率 + 帧插值增强，返回新资产 ID。
+
+    管线：ffmpeg 抽帧 → Real-ESRGAN 超分 → RIFE 补帧 → ffmpeg 重编码。
+    任一开源工具缺失时优雅跳过该步骤（仅告警），仍产出有效视频。
+    """
+    asset = db.get(Asset, req.asset_id)
+    if not asset:
+        raise HTTPException(status_code=404, detail="asset not found")
+
+    # SIMULATE 模式返回占位，避免在无 ffmpeg/工具的纯测试环境真正调起外部进程
+    if settings.SIMULATE_MODE:
+        return {
+            "asset_id": req.asset_id,
+            "output_path": "simulate://enhance/video",
+            "status": "simulated",
+            "scale": req.scale,
+            "fps_target": req.fps_target,
+        }
+
+    # 延迟导入：避免无增强工具环境 import 期触发不必要的副作用
+    from app.services.enhance_service import enhance_video, is_enhance_available
+
+    # 资产路径校验：enhance 仅支持本地文件，simulate:// 占位资产直接拒绝
+    src_path = asset.path or ""
+    if src_path.startswith("simulate://") or not src_path:
+        raise HTTPException(
+            status_code=400,
+            detail="资产路径无效（simulate:// 占位或为空），enhance 需要本地视频文件",
+        )
+
+    # 工具完全不可用时给出明确提示（而非默默返回原视频），便于调用方决策
+    if not is_enhance_available():
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "视频增强工具不可用：未检测到 realesrgan-ncnn-vulkan / rife-ncnn-vulkan，"
+                "或 ffmpeg 缺失。请安装对应工具或在 .env 配置 "
+                "REALESRGAN_PATH / RIFE_PATH，或开启 SIMULATE_MODE 走模拟流程。"
+            ),
+        )
+
+    # enhance_video 是同步阻塞的 subprocess 管线（超分/补帧很耗时），
+    # 放线程池执行避免阻塞 FastAPI 事件循环
+    try:
+        output_path = await asyncio.to_thread(
+            enhance_video,
+            src_path,
+            req.output_path,
+            req.scale,
+            req.fps_target,
+        )
+    except (FileNotFoundError, ValueError) as exc:
+        # 资产路径/参数问题 → 400
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        # ffmpeg/外部工具执行失败 → 500
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    # 创建增强后的新 Asset 记录，关联来源资产
+    new_asset = Asset(
+        asset_type="video",
+        path=output_path,
+        filename=Path(output_path).name,
+        project_id=None,
+        tags=["enhance", "realesrgan", "rife"],
+        meta={
+            "source_asset_id": req.asset_id,
+            "scale": req.scale,
+            "fps_target": req.fps_target,
+        },
+    )
+    db.add(new_asset)
+    db.commit()
+    db.refresh(new_asset)
+    return {
+        "asset_id": new_asset.id,
+        "output_path": output_path,
+        "status": "enhanced",
+        "scale": req.scale,
+        "fps_target": req.fps_target,
+    }
 
 
 # ===== 自动发布 =====

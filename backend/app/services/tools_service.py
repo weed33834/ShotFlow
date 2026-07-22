@@ -95,6 +95,8 @@ def _provider_kwargs(provider: str) -> dict:
         "tencent_tts": {"secret_id": s.TENCENT_SECRET_ID, "secret_key": s.TENCENT_SECRET_KEY},
         "wanx": {"api_key": s.DASHSCOPE_API_KEY},
         "cosyvoice": {"api_key": s.DASHSCOPE_API_KEY, "base_url": "https://dashscope.aliyuncs.com/api/v1"},
+        # GPT-SoVITS 为本地自建服务，无 api_key；base_url 由 GPTSOVITS_API_URL 注入
+        "gptsovits": {"base_url": getattr(s, "GPTSOVITS_API_URL", "") or ""},
         "kling": {"api_key": s.KLING_API_KEY, "base_url": s.KLING_BASE_URL},
         "jimeng": {"api_key": s.JIMENG_API_KEY, "base_url": s.JIMENG_BASE_URL},
         "runway": {"api_key": s.RUNWAY_API_KEY},
@@ -226,15 +228,18 @@ async def assemble(req: AssembleReq, db) -> ToolResult:
 
     try:
         result_path = assemble_video(
-            asset_paths=asset_paths,
-            audio_path=audio_path,
-            subtitles=req.subtitles,
-            subtitle_durations=req.subtitle_durations or None,
-            bgm_path=bgm_path,
-            output_path=output_path,
-            task_id=str(task.id),
-            video_aspect=req.video_aspect,
-        )
+        asset_paths=asset_paths,
+        audio_path=audio_path,
+        subtitles=req.subtitles,
+        subtitle_durations=req.subtitle_durations or None,
+        bgm_path=bgm_path,
+        output_path=output_path,
+        task_id=str(task.id),
+        video_aspect=req.video_aspect,
+        transition=getattr(req, "transition", ""),
+        ken_burns=getattr(req, "ken_burns", True),
+        color_grading=getattr(req, "color_grading", "none"),
+    )
     except Exception as e:
         task.status = "failed"
         task.error = str(e)[:2000]

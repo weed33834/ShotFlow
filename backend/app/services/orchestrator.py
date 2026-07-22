@@ -31,6 +31,10 @@ class Orchestrator:
         subtitle_enabled: bool = True,
         bgm_enabled: bool = True,
         local_asset_ids: list[int] | None = None,
+        style_preset: str = "",
+        scene_template: str = "",
+        quality_level: str = "standard",
+        transition: str = "fade",
     ) -> int:
         # 读流程文件（存在性校验，实际脑补见 _brain）
         flow_path = PROJECT_ROOT / "flows" / f"make_{output_type}.sop.md"
@@ -38,7 +42,8 @@ class Orchestrator:
             raise ValueError(f"未找到流程文件: {flow_path}")
 
         # S1+S2 意图识别 + 需求脑补（有 LLM Key 调 LLM；无 Key 回退硬编码模板）
-        spec_data = await self._brain(nl_prompt, output_type)
+        # 传入风格预设、场景模板、质量等级，让 LLM 生成电影级分镜描述
+        spec_data = await self._brain(nl_prompt, output_type, style_preset, scene_template, quality_level)
 
         # 用户前端选择的参数覆盖 spec 中的默认值
         # voice_name 非空时覆盖所有镜头的 audio.voice，让用户能控制配音声音
@@ -161,6 +166,7 @@ class Orchestrator:
                     asset_ids.append(aid)
 
         # 组装时传入 video_aspect 控制输出分辨率，bgm_enabled 控制是否混入 BGM
+        # transition 控制镜头间转场效果（xfade），ken_burns 对静态图片做缓慢推拉
         await svc.assemble(
             AssembleReq(
                 spec_id=spec.id,
@@ -169,6 +175,8 @@ class Orchestrator:
                 subtitle_durations=subtitle_durations,
                 video_aspect=video_aspect,
                 bgm_enabled=bgm_enabled,
+                transition=transition,
+                ken_burns=True,
             ),
             db,
         )
@@ -321,11 +329,23 @@ class Orchestrator:
                 durations.append(float(sh.get("duration", 5)))
         return subtitles, durations
 
-    async def _brain(self, nl_prompt: str, output_type: str) -> dict:
+    async def _brain(
+        self,
+        nl_prompt: str,
+        output_type: str,
+        style_preset: str = "",
+        scene_template: str = "",
+        quality_level: str = "standard",
+    ) -> dict:
         """脑补 Spec：有 LLM Key 时调 LLM 真实生成分镜；无 Key 回退硬编码模板。"""
         if settings.LLM_API_KEY:
             try:
-                spec = await generate_script_spec(nl_prompt, output_type)
+                spec = await generate_script_spec(
+                    nl_prompt, output_type,
+                    style_preset=style_preset,
+                    scene_template=scene_template,
+                    quality_level=quality_level,
+                )
                 # 补齐编排器下游消费的 wrapper 字段（LLM 返回不含这些）
                 spec.setdefault("intent", nl_prompt)
                 spec.setdefault("output_type", output_type)
@@ -336,16 +356,35 @@ class Orchestrator:
             except Exception as exc:
                 # LLM 失败时回退硬编码，不让编排器完全不可用（网络/限流/key失效等）
                 logger.warning("LLM brain 失败，回退硬编码模板: %s", exc)
-        return self._brain_fallback(nl_prompt, output_type)
+        return self._brain_fallback(nl_prompt, output_type, style_preset)
 
-    def _brain_fallback(self, nl_prompt: str, output_type: str) -> dict:
-        """硬编码模板脑补（无 LLM 或 LLM 失败时的兜底）。"""
+    def _brain_fallback(self, nl_prompt: str, output_type: str, style_preset: str = "") -> dict:
+        """硬编码模板脑补（无 LLM 或 LLM 失败时的兜底）。
+
+        使用 enhance_fallback_prompt 从词库随机选取专业术语，提升无 LLM 时的画面描述质量。
+        """
+        from app.prompts import enhance_fallback_prompt
+
         if any(k in nl_prompt for k in ["奶龙", "奶娃", "龙"]):
             subject = "奶龙奶娃"
         elif any(k in nl_prompt for k in ["猫", "狗", "宠"]):
             subject = "萌宠主角"
         else:
-            subject = "主角"
+            subject = nl_prompt[:20] if nl_prompt else "主角"
+
+        # 用词库增强每个镜头的画面描述，避免"主角做出动作1"这种空洞描述
+        shots = []
+        for i in range(3):
+            enhanced = enhance_fallback_prompt(subject, i + 1, style_preset)
+            shots.append({
+                "index": i + 1,
+                "duration": 5,
+                "image_prompt": enhanced,
+                "video_prompt": f"{subject}, slow cinematic camera movement, {enhanced[-60:]}",
+                "audio": {"text": f"旁白：{nl_prompt[:30]}...第{i + 1}段", "voice": "child_cn", "type": "tts"},
+                "subtitle": f"旁白第{i + 1}段",
+            })
+
         return {
             "intent": nl_prompt,
             "output_type": output_type,
@@ -353,7 +392,7 @@ class Orchestrator:
             "characters": [
                 {
                     "name": subject,
-                    "anchor_prompt": f"{subject}，圆润卡通风格，高饱和色彩，夸张表情",
+                    "anchor_prompt": enhance_fallback_prompt(subject, 0, style_preset),
                     "ref_asset_ids": [],
                 }
             ],
@@ -361,17 +400,7 @@ class Orchestrator:
                 {
                     "index": 1,
                     "description": "自动脑补场景",
-                    "shots": [
-                        {
-                            "index": i + 1,
-                            "duration": 5,
-                            "image_prompt": f"{subject}做出动作{i + 1}",
-                            "video_prompt": f"{subject}生动动作{i + 1}",
-                            "audio": {"text": f"台词{i + 1}", "voice": "child_cn", "type": "tts"},
-                            "subtitle": f"台词{i + 1}",
-                        }
-                        for i in range(3)
-                    ],
+                    "shots": shots,
                 }
             ],
             "assembly": {"subtitles": True, "bgm": True, "resolution": "1080p"},

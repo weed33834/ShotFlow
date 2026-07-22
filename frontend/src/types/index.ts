@@ -304,6 +304,15 @@ export interface GenerateRequest {
   bgm_enabled?: boolean;
   // 上传的本地素材 asset_id 列表，S5 组装时追加到生成资产之后参与拼接
   local_asset_ids?: number[];
+  // 电影级画质增强参数（后端 generate 端点支持）
+  // 风格预设：cinematic/cyberpunk/anime/ink_wash/ghibli/oil_painting/realistic/watercolor/documentary/wes_anderson/scifi/fantasy/noir，空字符串=自动
+  style_preset?: string;
+  // 场景模板：product/food/travel/knowledge/story/city/nature/action/interview/tutorial，空字符串=自动
+  scene_template?: string;
+  // 质量等级：standard/hd/4k/8k
+  quality_level?: string;
+  // 转场效果：fade/wipeleft/wiperight/slideup/slidedown/circleopen/circleclose/distance/zoomin
+  transition?: string;
 }
 
 export interface GenerateResponse {
@@ -328,4 +337,53 @@ export interface ProvidersConfig {
   llm_provider: string;
   llm_model: string;
   ffmpeg_available: boolean;
+}
+
+// ===== 电影级提示词系统类型（与后端 /tools/prompts/* 对齐）=====
+
+// 风格预设：来自 styles/presets.yaml，API 返回 { key, name, image_suffix, video_suffix, negative_prompt }
+export interface StylePreset {
+  key: string;
+  name: string;
+  image_suffix: string;
+  video_suffix: string;
+  negative_prompt: string;
+}
+
+// 场景模板：来自 scenes/templates.yaml，API 返回 { key, name, shot_rhythm, shot_sequence, lighting, transition }
+export interface SceneTemplate {
+  key: string;
+  name: string;
+  shot_rhythm: string;
+  shot_sequence: string;
+  lighting: string;
+  transition: string;
+}
+
+// 质量等级：API 返回 { key, label, desc }
+export interface QualityLevel {
+  key: string;
+  label: string;
+  desc: string;
+}
+
+// 镜头语言词库：光影/景别/运镜/氛围
+export interface CinematicKeywords {
+  lighting: string[];
+  camera_angles: string[];
+  camera_movement: string[];
+  mood: string[];
+}
+
+// 各提示词列表接口的响应包装
+export interface StylePresetsResponse {
+  styles: StylePreset[];
+}
+
+export interface SceneTemplatesResponse {
+  scenes: SceneTemplate[];
+}
+
+export interface QualityLevelsResponse {
+  levels: QualityLevel[];
 }

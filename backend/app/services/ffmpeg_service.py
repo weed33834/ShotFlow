@@ -10,11 +10,14 @@
   拼接多段视频。
 
 合成管线（多 pass，兼顾正确性与可读性）：
-  1. 图片 → 视频片段（-loop 1 -t dur -c:v libx264）
+  1. 图片 → 视频片段（-loop 1 -t dur -c:v libx264）；可选 Ken Burns(zoompan)
+     缓慢推拉镜头，让静态图片更有电影感
   2. 所有片段归一化到统一编码/分辨率/帧率（因不同 provider 产出格式不一，
      必须归一化后 concat -c copy 才不会花屏）
-  3. concat demuxer 拼接（-f concat -safe 0 -c copy）
-  4. 最终 pass：amix 混音（normalize=0）+ subtitles/drawtext 烧字幕 → 输出
+  3. 拼接：有转场时用 xfade 滤镜链做平滑过渡（fade/wipe/circle/zoom 等），
+     否则用 concat demuxer 硬切拼接（-f concat -safe 0 -c copy）
+  4. 最终 pass：调色（curves/eq 电影感预设）+ amix 混音（normalize=0）
+     + subtitles/drawtext 烧字幕 → 输出
 """
 
 import logging
@@ -40,7 +43,9 @@ _AUDIO_EXTS = {".mp3", ".wav", ".aac", ".m4a", ".ogg", ".flac"}
 _DEFAULT_IMAGE_DURATION = 3.0
 _DEFAULT_RESOLUTION = (1280, 720)
 _DEFAULT_FPS = 30
-# 单次 ffmpeg 调用超时（秒），防止卡死
+# 单次 ffmpeg 调用超时（秒），防止卡死。
+# 注意：对于 60s+ 长视频且片段较多时，xfade 转场虽比 concat 耗时，但过渡更
+# 平滑自然，是长视频首选；1800s 超时已足够覆盖多 pass 编码（含 xfade 链）场景。
 _FFMPEG_TIMEOUT = 1800
 
 # 画面比例 → 目标分辨率映射（用户前端选择后直接控制输出尺寸）
@@ -277,33 +282,68 @@ def _compute_image_duration(
     return _DEFAULT_IMAGE_DURATION
 
 
+def _ken_burns_filter(w: int, h: int, fps: int, duration: float, idx: int) -> str:
+    """构建图片 Ken Burns(zoompan) 滤镜：缓慢推拉镜头，让静态图片有电影感。
+
+    为什么用 zoompan：纯静态图片直接转视频会显得呆板，zoompan 的缓慢缩放能
+    模拟镜头推拉，提升观感。奇偶镜头交替 zoom in/out 增加变化、避免单调。
+
+    为什么 d 必须取整：zoompan 的 d(持续时间)参数以"帧"为单位，必须是整数，
+    传浮点数 ffmpeg 会报错，因此用 int(duration*fps) 换算成总帧数。
+    """
+    # d 参数为整数帧数：时长×帧率，至少 1 帧避免 0 帧导致 zoompan 不输出
+    total_frames = max(1, int(duration * fps))
+    # 镜头序号从 1 计起：奇数镜头(idx 偶数)zoom in，偶数镜头(idx 奇数)zoom out，
+    # 交替推拉增加视觉变化
+    if idx % 2 == 0:
+        # zoom in：zoom 变量累积递增，从 1.0 缓慢放大到上限 1.5
+        z_expr = "min(zoom+0.0015,1.5)"
+    else:
+        # zoom out：用 on(输出帧序号)算绝对缩放，从 1.5 缓慢收回到 1.0；
+        # 不能用 zoom 变量递减，因其初值为 1.0 会立刻被下限夹住无法起步
+        z_expr = "max(1.0,1.5-0.0015*on)"
+    return (
+        f"scale={w}:{h}:force_original_aspect_ratio=increase,"
+        f"crop={w}:{h},"
+        f"zoompan=z='{z_expr}':d={total_frames}:s={w}x{h}:fps={fps},"
+        f"setsar=1"
+    )
+
+
 def _prepare_segments(
     asset_paths: list[Path],
     image_duration: float,
     resolution: tuple[int, int],
     fps: int,
     work_dir: Path,
+    ken_burns: bool = True,
 ) -> list[Path]:
     """把图片转视频片段 + 归一化视频片段，统一为 libx264/yuv420p 同分辨率。
 
     所有片段统一去除音轨（-an），因为音频在最终 pass 单独用 amix 混入，
     避免拼接时音轨对不齐。
+
+    ken_burns=True 时对静态图片叠加 zoompan 推拉镜头；视频段保持原有缩放
+    滤镜（zoompan 仅适用于无运动的静态画面，对已有运动的视频会冲突）。
     """
     w, h = resolution
     segments: list[Path] = []
     for idx, ap in enumerate(asset_paths):
         out = work_dir / f"seg_{idx:04d}.mp4"
         if _is_image(ap):
+            # 图片：ken_burns 开启用 zoompan 推拉镜头，否则普通缩放填充
+            vf = _ken_burns_filter(w, h, fps, image_duration, idx) if ken_burns else _scale_filter(w, h, fps)
             # -loop 1 让单张图片循环输出，-t 限定时长
             _run_ffmpeg([
                 "-loop", "1", "-i", str(ap),
                 "-t", f"{image_duration:.3f}",
-                "-vf", _scale_filter(w, h, fps),
+                "-vf", vf,
                 "-c:v", "libx264", "-pix_fmt", "yuv420p",
                 "-an",
                 "-y", str(out),
             ], desc=f"图片转视频片段 {ap.name}")
         else:
+            # 视频段：保持原有缩放滤镜（zoompan 不适用于已有运动画面的视频）
             _run_ffmpeg([
                 "-i", str(ap),
                 "-vf", _scale_filter(w, h, fps),
@@ -342,6 +382,88 @@ def _concat_segments(segments: list[Path], work_dir: Path) -> Path:
             "-an",
             "-y", str(out),
         ], desc="concat 拼接 (重编码)")
+    return out
+
+
+# xfade 转场支持的特效白名单（ffmpeg xfade 滤镜的 transition 子类型）
+# 为什么用白名单：未知类型会让 ffmpeg 直接报错，提前校验并回退到最通用的 fade
+_XFADE_EFFECTS: set[str] = {
+    "fade", "wipeleft", "wiperight", "slideup", "slidedown",
+    "circleopen", "circleclose", "distance", "zoomin",
+    "smoothleft", "smoothright", "smoothup", "smoothdown",
+}
+# xfade 转场时长（秒）—— 0.5s 兼顾流畅度与节奏感，过长会拖沓、过短则生硬
+_XFADE_DURATION = 0.5
+
+
+def _apply_xfade_transitions(
+    segments: list[Path],
+    transition: str,
+    work_dir: Path,
+) -> Path:
+    """用 ffmpeg xfade 滤镜在片段之间创建平滑转场，返回拼接后视频路径。
+
+    为什么单独成函数：xfade 需精确计算每段时长与 offset，filter_complex 链式
+    拼接逻辑与 concat demuxer 完全不同，独立实现便于维护与排错。
+
+    offset 计算（关键）：xfade 的 offset 是"转场开始时刻"。每次转场会让两段
+    末尾重叠 _XFADE_DURATION 秒，因此输出累计时长 = 各段时长之和 - 转场数×
+    转场时长。下一次转场的 offset = 当前累计输出时长 - 转场时长。
+
+    边界处理：
+    - 1 段：无需转场，直接返回该段路径
+    - 2 段：单个 xfade
+    - N 段：链式 xfade，按上述 offset 递推
+    """
+    # 转场类型校验：不在白名单则回退到 fade（最通用、兼容性最好）
+    effect = transition if transition in _XFADE_EFFECTS else "fade"
+
+    # 仅 1 段时无需转场，直接返回（避免无意义的重编码）
+    if len(segments) == 1:
+        return segments[0]
+
+    # 探测每段实际时长（已归一化重编码，ffprobe 可精确读取）
+    durations = [_probe_duration(seg) for seg in segments]
+    # 兜底：探测失败时用默认图片时长，避免 offset 计算为负或为 0
+    durations = [d if d > 0 else _DEFAULT_IMAGE_DURATION for d in durations]
+
+    # 构建 filter_complex 链：[prev][i]xfade=transition=...:offset=...[cur]
+    parts: list[str] = []
+    prev_label = "0:v"
+    # running_duration：已拼接输出的累计时长，用于递推每次 xfade 的 offset
+    running_duration = durations[0]
+    for i in range(1, len(segments)):
+        # offset = 当前输出时长 - 转场时长（转场在两段交界处重叠）
+        # 片段比转场还短时夹到 0.1s，至少让前段完整呈现一帧
+        offset = max(0.1, running_duration - _XFADE_DURATION)
+        is_last = i == len(segments) - 1
+        # 最后一段转场输出标记为 [vout] 供 -map 引用，中间结果用 [vi]
+        cur_label = "vout" if is_last else f"v{i}"
+        parts.append(
+            f"[{prev_label}][{i}:v]xfade=transition={effect}:"
+            f"duration={_XFADE_DURATION}:offset={offset:.3f}[{cur_label}]"
+        )
+        prev_label = cur_label
+        # 拼入第 i 段后，输出时长 = 原输出 + 第 i 段时长 - 转场重叠
+        running_duration = running_duration + durations[i] - _XFADE_DURATION
+
+    out = work_dir / "xfade.mp4"
+    # 所有片段作为独立输入喂给 filter_complex
+    inputs: list[str] = []
+    for seg in segments:
+        inputs += ["-i", str(seg)]
+
+    _run_ffmpeg(
+        inputs + [
+            "-filter_complex", ";".join(parts),
+            "-map", "[vout]",
+            "-c:v", "libx264", "-pix_fmt", "yuv420p",
+            # 转场输出不含音轨，音频在最终 pass 单独 amix 混入，保持与 concat 路径一致
+            "-an",
+            "-y", str(out),
+        ],
+        desc=f"xfade 转场拼接 (effect={effect}, {len(segments)} 段)",
+    )
     return out
 
 
@@ -399,6 +521,28 @@ def _build_drawtext_filter(
 # 最终合成 pass
 # --------------------------------------------------------------------------- #
 
+# 调色预设 → curves/eq 滤镜字符串（电影感调色，最终 pass 前置到视频滤镜链）
+# 为什么用 curves+eq 组合：curves 调整色调曲线（色相偏移），eq 调对比/饱和，
+# 两者配合可模拟经典电影胶片质感
+_COLOR_GRADING_PRESETS: dict[str, str] = {
+    "vintage": "curves=preset=vintage,eq=saturation=0.85:contrast=1.1",
+    "cross_process": "curves=preset=cross_process,eq=saturation=1.2",
+    "teal_orange": "curves=r='0/0 0.5/0.4 1/1':g='0/0 0.5/0.45 1/1':b='0/0 0.5/0.6 1/1',eq=saturation=1.15",
+    "high_contrast": "eq=contrast=1.3:saturation=1.1:brightness=-0.05",
+    "warm_film": "curves=preset=warmer,eq=saturation=1.1:contrast=1.05",
+}
+
+
+def _build_color_grading_filter(preset: str) -> str:
+    """根据调色预设返回 curves/eq 滤镜字符串，未知/none 返回空串。
+
+    为什么单独成函数：调色预设较多且滤镜字符串复杂，集中管理便于扩展维护。
+    none 或未知预设返回空串（跳过调色），调用方无需判空即可拼接到滤镜链。
+    """
+    if not preset or preset == "none":
+        return ""
+    return _COLOR_GRADING_PRESETS.get(preset, "")
+
 
 def _run_final(
     concat_path: Path,
@@ -406,14 +550,19 @@ def _run_final(
     bgm_input: Path | None,
     subtitle_filter: str | None,
     output: Path,
+    color_grading: str = "",
 ) -> None:
-    """执行最终 pass：视频（可选字幕）+ 音频（可选 amix 混音）→ 输出 mp4。
+    """执行最终 pass：视频（可选调色+字幕）+ 音频（可选 amix 混音）→ 输出 mp4。
 
-    - 有字幕时必须重编码视频（滤镜要求）
-    - 仅混音无字幕时可 -c:v copy 视频轨，省一次编码
+    - 调色滤镜前置到视频滤镜链最前（先调色再烧字幕，避免字幕被调色影响）
+    - 有字幕或调色时必须重编码视频（滤镜要求）
+    - 仅混音无字幕/调色时可 -c:v copy 视频轨，省一次编码
     - 无音频时输出静音视频（-an）
     - 混音前对配音音频做 LUFS 响度标准化，保证不同 TTS 产出音量一致
     """
+    # 解析调色滤镜（none/未知返回空串 → 跳过调色）
+    cg_filter = _build_color_grading_filter(color_grading)
+    has_color_grading = bool(cg_filter)
     # 在混音前对配音音频进行响度标准化
     normalized_path: str | None = None
     if audio_input:
@@ -441,16 +590,25 @@ def _run_final(
 
         need_amix = audio_idx is not None and bgm_idx is not None
         has_subtitle = bool(subtitle_filter)
-        use_filter = has_subtitle or need_amix
+        # 调色、字幕、混音任一存在都需要 filter_complex
+        use_filter = has_subtitle or need_amix or has_color_grading
 
         if use_filter:
             parts: list[str] = []
-            # 视频轨：字幕滤镜或直通
+            # 视频轨：先调色（若有）再字幕（若有），调色前置避免字幕被调色影响
+            if has_color_grading:
+                parts.append(f"[0:v]{cg_filter}[vcg]")
+                vsrc = "[vcg]"
+            else:
+                vsrc = "0:v"
             if has_subtitle:
-                parts.append(subtitle_filter)
+                # 字幕滤镜默认输入写死为 [0:v]，调色后需把输入标签替换为调色输出
+                sub_filter = subtitle_filter.replace("[0:v]", vsrc, 1) if has_color_grading else subtitle_filter
+                parts.append(sub_filter)
                 vmap = "[vsub]"
             else:
-                vmap = "0:v"
+                # 无字幕：调色时视频输出为 [vcg]，否则直通 0:v
+                vmap = vsrc if has_color_grading else "0:v"
             # 音频轨：amix 混音或直通单轨
             amap = None
             if need_amix:
@@ -469,8 +627,8 @@ def _run_final(
             args += ["-map", vmap]
             if amap:
                 args += ["-map", amap]
-            # 有字幕必须重编码；仅混音时视频直通拷贝
-            if has_subtitle:
+            # 有字幕或调色必须重编码；仅混音时视频直通拷贝
+            if has_subtitle or has_color_grading:
                 args += ["-c:v", "libx264", "-pix_fmt", "yuv420p"]
             else:
                 args += ["-c:v", "copy"]
@@ -509,12 +667,15 @@ def _final_pass(
     durations: list[float],
     output: Path,
     work_dir: Path,
+    color_grading: str = "none",
 ) -> None:
     """最终合成 pass，带 subtitles → drawtext → 无字幕 三级 fallback。
 
     参考 NarratoAI 的三级字幕 fallback 设计：优先 libass subtitles 滤镜
     （渲染质量最好），不可用时退到 drawtext（仅需 freetype），再不可用则
     跳过字幕（保证成片仍能产出）。
+
+    color_grading 在三级 fallback 中一致透传：无论哪级字幕路径都会应用调色。
     """
     has_srt = srt_path is not None and srt_path.exists()
 
@@ -522,7 +683,8 @@ def _final_pass(
         # Level 1: subtitles 滤镜（需 libass，渲染质量最佳）
         try:
             _run_final(concat_path, audio_input, bgm_input,
-                       _build_subtitles_filter(srt_path), output)
+                       _build_subtitles_filter(srt_path), output,
+                       color_grading=color_grading)
             return
         except RuntimeError as e:
             logger.warning("subtitles 滤镜失败，尝试 drawtext 兜底: %s", e)
@@ -532,13 +694,14 @@ def _final_pass(
         try:
             _run_final(concat_path, audio_input, bgm_input,
                        _build_drawtext_filter(subtitles, durations, fontfile, work_dir),
-                       output)
+                       output, color_grading=color_grading)
             return
         except RuntimeError as e:
             logger.warning("drawtext 也失败，跳过字幕烧录: %s", e)
 
     # Level 3: 无字幕（保证成片仍能产出）
-    _run_final(concat_path, audio_input, bgm_input, None, output)
+    _run_final(concat_path, audio_input, bgm_input, None, output,
+               color_grading=color_grading)
 
 
 # --------------------------------------------------------------------------- #
@@ -555,6 +718,9 @@ def assemble_video(
     output_path: str = "",
     task_id: str = "default",
     video_aspect: str = "",
+    transition: str = "",
+    ken_burns: bool = True,
+    color_grading: str = "none",
 ) -> str:
     """用 ffmpeg 把多段视频/图片+音频+字幕合成成片，返回输出文件路径。
 
@@ -567,6 +733,10 @@ def assemble_video(
         output_path: 输出路径（空则用 STORAGE_DIR/assembled/assemble_{task_id}.mp4）
         task_id: 任务 ID（用于默认输出路径与临时目录命名）
         video_aspect: 画面比例（16:9/9:16/1:1/4:3/3:4，空则用首个资产分辨率）
+        transition: 片段间转场特效（fade/wipeleft/.../smoothdown，空或 none 用硬切 concat）
+        ken_burns: 静态图片是否叠加 zoompan 缓慢推拉镜头（默认开启）
+        color_grading: 调色预设（none/vintage/cross_process/teal_orange/
+            high_contrast/warm_film，none 跳过调色）
     """
     if not asset_paths:
         raise ValueError("asset_paths 不能为空：至少需要一个视频/图片资产")
@@ -597,11 +767,19 @@ def assemble_video(
         num_images = sum(1 for p in validated_inputs if _is_image(p))
         image_dur = _compute_image_duration(audio_input, num_images, subtitle_durations)
 
-        # 1. 准备归一化片段
-        segments = _prepare_segments(validated_inputs, image_dur, resolution, _DEFAULT_FPS, work)
+        # 1. 准备归一化片段（ken_burns 控制图片是否加 zoompan 推拉镜头）
+        segments = _prepare_segments(
+            validated_inputs, image_dur, resolution, _DEFAULT_FPS, work,
+            ken_burns=ken_burns,
+        )
 
-        # 2. concat 拼接
-        concat_path = _concat_segments(segments, work)
+        # 2. 拼接：有转场用 xfade 平滑过渡，否则用 concat demuxer 硬切。
+        # 对于 60s+ 长视频且片段较多时，xfade 方式产出的过渡更平滑自然，
+        # 优先于 concat demuxer 的硬切；transition 为空或 none 时回退 concat。
+        if transition and transition.lower() != "none":
+            concat_path = _apply_xfade_transitions(segments, transition, work)
+        else:
+            concat_path = _concat_segments(segments, work)
 
         # 3. 生成 SRT（如有字幕且未提供时长，按拼接后视频时长均分）
         srt_path: Path | None = None
@@ -614,11 +792,11 @@ def assemble_video(
             srt_path = work / "subtitles.srt"
             srt_path.write_text(srt_content, encoding="utf-8")
 
-        # 4. 最终 pass：混音 + 烧字幕 → 输出
+        # 4. 最终 pass：调色 + 混音 + 烧字幕 → 输出
         _final_pass(
             concat_path, audio_input, bgm_input,
             srt_path, subtitles, subtitle_durations or [],
-            output, work,
+            output, work, color_grading=color_grading,
         )
 
     return str(output)

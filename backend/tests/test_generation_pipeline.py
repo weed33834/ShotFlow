@@ -740,7 +740,7 @@ def test_brain_fallback_returns_correct_spec():
 
 
 def test_brain_fallback_keyword_detection():
-    """_brain_fallback 关键词识别：奶龙/萌宠/默认主角。"""
+    """_brain_fallback 关键词识别：奶龙/萌宠/通用（用 prompt 前 20 字作主题）。"""
     orch = Orchestrator()
     # 奶龙关键词
     spec1 = orch._brain_fallback("做个奶龙动画", "video")
@@ -748,9 +748,12 @@ def test_brain_fallback_keyword_detection():
     # 萌宠关键词
     spec2 = orch._brain_fallback("一只猫的故事", "video")
     assert "萌宠" in spec2["characters"][0]["name"]
-    # 默认
+    # 通用：无关键词时用 prompt 前 20 字作主题（比固定"主角"更有意义）
     spec3 = orch._brain_fallback("随便做个视频", "video")
-    assert spec3["characters"][0]["name"] == "主角"
+    assert spec3["characters"][0]["name"] == "随便做个视频"
+    # 空字符串兜底
+    spec4 = orch._brain_fallback("", "video")
+    assert spec4["characters"][0]["name"] == "主角"
 
 
 def test_build_subtitle_data_without_word_boundaries():

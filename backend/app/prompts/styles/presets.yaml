@@ -1,0 +1,77 @@
+cinematic:
+  name: "电影感"
+  image_suffix: "cinematic lighting, film color grading, shallow depth of field, 35mm film grain, dramatic composition, anamorphic lens flare, ACES color space"
+  video_suffix: "smooth camera movement, cinematic pacing, film-like motion blur"
+  negative_prompt: "cartoon, anime, low quality, blurry, overexposed, flat lighting"
+
+cyberpunk:
+  name: "赛博朋克"
+  image_suffix: "cyberpunk aesthetic, neon lights, cyan and magenta color palette, rain-slicked streets, volumetric fog, futuristic architecture, blade runner style, holographic displays"
+  video_suffix: "dynamic camera angles, neon reflections, atmospheric haze, rain particles"
+  negative_prompt: "rural, natural light, daytime, warm tones, pastoral"
+
+anime:
+  name: "动漫"
+  image_suffix: "anime style, cel shading, vibrant colors, clean lines, detailed background art, key animation quality, Makoto Shinkai style"
+  video_suffix: "smooth hand-drawn animation, dynamic action poses, wind effects"
+  negative_prompt: "photorealistic, 3D render, western cartoon, live action"
+
+ink_wash:
+  name: "水墨画"
+  image_suffix: "Chinese ink wash painting style, negative space, subtle gradient tones, traditional brush technique, minimalist composition, xuan paper texture"
+  video_suffix: "gentle flowing movement, ink diffusion effect, brush stroke animation"
+  negative_prompt: "photorealistic, 3D render, saturated colors, modern setting, neon"
+
+ghibli:
+  name: "吉卜力"
+  image_suffix: "Studio Ghibli style, hand-drawn animation, warm color palette, soft lighting, detailed background art, whimsical atmosphere, Hayao Miyazaki direction"
+  video_suffix: "smooth hand-drawn animation movement, gentle wind effects, natural motion"
+  negative_prompt: "photorealistic, dark, gritty, cyberpunk, 3D render, horror"
+
+oil_painting:
+  name: "油画"
+  image_suffix: "oil painting texture, visible brushstrokes, rich impasto, Rembrandt lighting, classical composition, gallery quality, canvas texture"
+  video_suffix: "subtle paint texture animation, slow dreamy movement"
+  negative_prompt: "digital art, flat colors, anime, photograph"
+
+realistic:
+  name: "写实"
+  image_suffix: "photorealistic, ultra-detailed, natural texture, documentary photography, 85mm lens, natural light, raw photo, 8K UHD"
+  video_suffix: "natural camera movement, realistic motion, documentary style"
+  negative_prompt: "cartoon, anime, painting, stylized, artificial lighting"
+
+watercolor:
+  name: "水彩"
+  image_suffix: "watercolor painting, soft wash, wet-on-wet technique, textured paper, gentle color bleeding, hand-painted illustration"
+  video_suffix: "soft flowing movement, paint diffusion, gentle transitions"
+  negative_prompt: "photorealistic, 3D render, sharp edges, digital art"
+
+documentary:
+  name: "纪实摄影"
+  image_suffix: "documentary photography, natural light, handheld feel, 35mm film grain, candid moment, photojournalism style, raw unedited look"
+  video_suffix: "handheld camera, natural movement, observational documentary style"
+  negative_prompt: "studio lighting, staged, artificial, glossy, retouched"
+
+wes_anderson:
+  name: "韦斯·安德森"
+  image_suffix: "Wes Anderson symmetry, pastel color palette, symmetrical framing, centered composition, vintage production design, dollhouse aesthetic"
+  video_suffix: "symmetrical camera movement, slow deliberate pans, static framing"
+  negative_prompt: "asymmetric, dark, gritty, handheld, naturalistic"
+
+scifi:
+  name: "科幻"
+  image_suffix: "science fiction, futuristic technology, holographic interfaces, sleek metallic surfaces, blue-white LED lighting, spaceship interior, alien landscape"
+  video_suffix: "smooth steady-cam, futuristic technology animation, floating UI elements"
+  negative_prompt: "medieval, rustic, vintage, warm tones, natural setting"
+
+fantasy:
+  name: "奇幻"
+  image_suffix: "epic fantasy, magical atmosphere, ethereal glow, ancient ruins, mystical fog, golden particles, Lord of the Rings aesthetic, painterly"
+  video_suffix: "sweeping camera, magical particle effects, slow majestic movement"
+  negative_prompt: "modern, urban, sci-fi, minimalist, flat lighting"
+
+noir:
+  name: "黑色电影"
+  image_suffix: "film noir, high contrast black and white, venetian blind shadows, cigarette smoke, rain-soaked streets, 1940s aesthetic, low-key lighting"
+  video_suffix: "slow dramatic camera, shadow play, smoke movement"
+  negative_prompt: "bright, colorful, modern, cheerful, flat lighting"
