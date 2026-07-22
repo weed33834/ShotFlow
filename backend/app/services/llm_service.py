@@ -306,47 +306,6 @@ async def _chat_claude(
     return _strip_think_blocks(text)
 
 
-_SYSTEM_PROMPT_TEMPLATE = """你是 ShotFlow AIGC 编排平台的分镜脚本专家。根据用户的一句话需求，生成结构化的分镜编排规格（spec）。
-
-你必须只返回一个合法 JSON 对象，不要输出任何解释性文字，不要使用 Markdown 代码围栏。
-
-JSON 结构如下：
-{{
-  "title": "短片标题",
-  "characters": [
-    {{"name": "角色名", "desc": "角色外观与性格描述", "anchor_prompt": "一致性锚定的图像提示词：角色外观+画风，中文，具体描述"}}
-  ],
-  "scenes": [
-    {{
-      "name": "场景名",
-      "index": 1,
-      "description": "场景描述",
-      "shots": [
-        {{
-          "index": 1,
-          "duration": 5,
-          "image_prompt": "本镜画面描述（文生图用，中文，含构图/光影/角色动作/场景）",
-          "video_prompt": "本镜动态描述（图生视频用，中文，含镜头运动与动态）",
-          "subtitle": "本镜字幕文本",
-          "voice_text": "本镜配音台词",
-          "audio": {{"text": "配音台词", "voice": "child_cn", "type": "tts"}}
-        }}
-      ]
-    }}
-  ]
-}}
-
-要求：
-- 生成 1-3 个场景，每个场景 3-5 个镜头。
-- 角色一致性：每个角色都要有 anchor_prompt，跨镜头锁定外观。
-- image_prompt 要具体、可视化：包含角色外观、场景、构图、光影。
-- video_prompt 描述镜头运动（推/拉/摇/移）与角色动态。
-- subtitle 与 voice_text 可以相同（旁白）也可以不同（字幕简短、台词完整）。
-- audio.voice 取值：child_cn（童声）/ female_cn（女声）/ male_cn（男声）。
-- 产出类型为 {output_type}，请据此调整内容：video=短片，image_set=图集，micro_movie=微电影，comic=漫画分镜，vn=视觉小说。
-- 仅返回 JSON，不要任何额外文字。"""
-
-
 def _normalize_spec(spec: dict[str, Any], nl_prompt: str, output_type: str) -> dict[str, Any]:
     """规整 LLM 返回的 spec：补齐编排器下游消费所需的必填字段，保证结构稳定。
 

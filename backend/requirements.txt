@@ -1,5 +1,5 @@
 # ShotFlow — 后端运行时依赖
-# Python 3.12+
+# Python 3.10+
 
 # Web 框架
 # fastapi 需 >=0.139 才能兼容 starlette 1.x；fastmcp-slim[server] 的 MCP 服务器依赖

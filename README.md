@@ -1,6 +1,8 @@
 # ShotFlow
 
-> Flow-file-driven AIGC orchestration platform. External agents read SOP definitions and call vendor-agnostic generation tools — no hardcoded brain, full reproducibility.
+> Flow-file-driven AIGC orchestration platform — AI video generation with cinematic prompts, FFmpeg advanced pipeline, and open-source AI alternatives. External agents read SOP definitions and call vendor-agnostic generation tools — no hardcoded brain, full reproducibility.
+
+**Keywords**: AI video generation, text-to-video, AIGC, AI orchestration, cinematic AI, FFmpeg, MCP, FastAPI, React, edge-tts, Real-ESRGAN, RIFE, GPT-SoVITS, FunASR, voice cloning, text-to-speech, AI filmmaking, automated video production
 
 [![CI](https://github.com/weed33834/ShotFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/weed33834/ShotFlow/actions/workflows/ci.yml)
 [![License: CNCL-1.0](https://img.shields.io/badge/License-CNCL--1.0-yellow.svg)](LICENSE)
@@ -107,9 +109,47 @@ graph TB
 - **SIMULATE mode**: Develop and test the full pipeline without GPU or API
   credentials. All providers return placeholder assets.
 
+### Cinematic Prompt System
+
+- **13 style presets**: cinematic, cyberpunk, anime, ink_wash, ghibli,
+  oil_painting, realistic, watercolor, documentary, wes_anderson, scifi,
+  fantasy, noir — each injects professional image/video suffixes and
+  negative prompts into LLM system prompts.
+- **10 scene templates**: product, food, travel, knowledge, story, city,
+  nature, action, interview, tutorial — each defines shot rhythm, shot
+  sequence, lighting, and transition style.
+- **Cinematic keyword library**: 15 lighting types, 15 camera angles, 15
+  camera movements, 15 mood keywords — randomly sampled to enrich
+  fallback prompts when no LLM is configured.
+- **Quality levels**: standard (1080p), hd (1080p+ bokeh), 4k (4K HDR ACES),
+  8k (8K HDR Dolby Vision) — controls technical parameters in prompts.
+
+### Advanced Video Pipeline (FFmpeg)
+
+- **xfade transitions**: 13 effects (fade, wipeleft, circleopen, distance,
+  zoomin, etc.) for smooth cross-dissolves between segments.
+- **Ken Burns effect**: zoompan filter for static images — slow zoom-in/out
+  with alternating directions for visual variety.
+- **Color grading**: 5 presets (vintage, cross_process, teal_orange,
+  high_contrast, warm_film) using FFmpeg curves + eq filters.
+- **60s+ long video**: xfade chain with offset calculation supports
+  unlimited segment count for coherent long-form output.
+
+### Open-Source AI Alternatives
+
+All open-source tools gracefully degrade — if not installed, the pipeline
+logs a warning and continues without crashing.
+
+| Feature | Commercial | Open-Source Alternative |
+|---|---|---|
+| ASR (Speech-to-Text) | OpenAI Whisper API | [FunASR](https://github.com/modelscope/FunASR) (paraformer-zh/en) |
+| TTS Voice Cloning | CosyVoice (Alibaba) | [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS) (local API) |
+| Video Super-Resolution | — | [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN) (ncnn-vulkan) |
+| Frame Interpolation | — | [RIFE](https://github.com/hzwer/ECCV2022-RIFE) (ncnn-vulkan) |
+
 ### Provider Support
 
-- **11 cloud vendors** integrated behind a uniform `BaseProvider` ABC.
+- **13 cloud + open-source providers** integrated behind a uniform `BaseProvider` ABC.
 - **MCP + REST dual exposure**: Both protocols available for maximum
   agent-framework compatibility.
 - **Easy to extend**: Add a new provider by implementing `generate(kind, params)`
@@ -148,6 +188,8 @@ graph TB
 | Suno | Music Generation | ✅ | API Key |
 | Liblib | Image Generation | ✅ | API Key |
 | NovelAI | Image Generation | ✅ | API Key |
+| CosyVoice | Voice Cloning | ✅ | API Key |
+| GPT-SoVITS | Voice Cloning (Open-Source) | ✅ | Local API URL |
 
 All providers support `SIMULATE_MODE=true` — set this in `.env` to test the
 full pipeline without any keys.
@@ -156,13 +198,30 @@ full pipeline without any keys.
 
 ## Quick Start
 
-### Prerequisites
+### Option A: Docker (Recommended)
 
-- Python 3.12+
+```bash
+git clone https://github.com/weed33834/ShotFlow.git
+cd ShotFlow
+docker compose up -d
+```
+
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
+
+SIMULATE_MODE is enabled by default — no API keys needed.
+
+### Option B: Local Development
+
+#### Prerequisites
+
+- Python 3.10+
 - Node.js 22+ (for frontend development)
+- FFmpeg (for video assembly)
 - (Optional) PostgreSQL for production
 
-### 1. Clone and Set Up
+#### 1. Clone and Set Up
 
 ```bash
 git clone https://github.com/weed33834/ShotFlow.git
