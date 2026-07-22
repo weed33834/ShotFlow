@@ -11,15 +11,11 @@
 SIMULATE 模式兜底，无需 Key 即可验证全链路。
 """
 
-import json
-
 import httpx
 
 from app.services.providers.base import AssetResult, BaseProvider
 
 _HEYGEN_BASE_URL = "https://api.heygen.com"
-_POLL_INTERVAL = 10
-_POLL_MAX = 60
 
 
 class HeygenProvider(BaseProvider):
@@ -42,6 +38,30 @@ class HeygenProvider(BaseProvider):
         return AssetResult(
             provider=self.name, url="",
             meta={"error": f"unsupported kind: {kind}", **params},
+        )
+
+    async def _poll_video(
+        self, client: httpx.AsyncClient, video_id: str, kind: str, params: dict
+    ) -> AssetResult:
+        """轮询 HeyGen 视频状态，终态后下载到本地。avatar / lipsync 共用。"""
+        # status 取 completed/processing/error，download_url 为最终视频地址
+        url, poll_data = await self._poll_task(
+            client,
+            f"{self.base_url}/v1/video_status?video_id={video_id}",
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            extract_status=lambda d: d.get("data", {}).get("status", ""),
+            extract_url=lambda d: d.get("data", {}).get("download_url", ""),
+        )
+        if not url:
+            return AssetResult(
+                provider=self.name, url="",
+                meta={"error": "no video url", "video_id": video_id, **poll_data},
+            )
+        local_path = self._download_asset(url, video_id, "video", "mp4")
+        return AssetResult(
+            url=local_path,
+            provider=self.name,
+            meta={"video_id": video_id, "kind": kind, **poll_data, **params},
         )
 
     async def _create_talking_avatar(self, params: dict) -> AssetResult:
@@ -80,11 +100,7 @@ class HeygenProvider(BaseProvider):
                     url="",
                     meta={"error": "no video_id", "raw": data, **params},
                 )
-            return AssetResult(
-                provider=self.name,
-                url="",
-                meta={"video_id": video_id, "status": "submitted", "kind": "video", **params},
-            )
+            return await self._poll_video(client, video_id, "video", params)
 
     async def _create_lipsync(self, params: dict) -> AssetResult:
         """对口型：上传视频 + 音频后提交。"""
@@ -109,8 +125,4 @@ class HeygenProvider(BaseProvider):
                     url="",
                     meta={"error": "no video_id", "raw": data, **params},
                 )
-            return AssetResult(
-                provider=self.name,
-                url="",
-                meta={"video_id": video_id, "status": "submitted", "kind": "lipsync", **params},
-            )
+            return await self._poll_video(client, video_id, "lipsync", params)

@@ -87,6 +87,11 @@ credentials.json
 .pypirc
 .netrc
 *.p12
+
+# 生成资产目录（TTS 音频、合成成片等运行时产物）
+/tts/
+/storage/
+*.mp3
 *.pfx
 *.keystore
 *.jks

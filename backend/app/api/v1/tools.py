@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.models import Spec
 from app.schemas.spec import (
     AssembleReq,
     GenerateReq,

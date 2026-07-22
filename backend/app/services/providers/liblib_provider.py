@@ -10,15 +10,19 @@
 SIMULATE 模式兜底，无需 Key 即可验证全链路。
 """
 
-import json
-
 import httpx
 
 from app.services.providers.base import AssetResult, BaseProvider
 
 _LIBLIB_BASE_URL = "https://openapi.liblibai.cloud"
-_POLL_INTERVAL = 5
-_POLL_MAX = 120
+
+
+def _first_image(d: dict) -> str:
+    """生成结果 images 可能是 url 列表，统一取首个。"""
+    imgs = (d.get("data", {}) or {}).get("images") or d.get("images")
+    if isinstance(imgs, list):
+        return imgs[0] if imgs else ""
+    return imgs or ""
 
 
 class LiblibProvider(BaseProvider):
@@ -68,8 +72,24 @@ class LiblibProvider(BaseProvider):
                     url="",
                     meta={"error": "no task_id", "raw": data, **params},
                 )
+            # 轮询查询生成任务，终态后从 images 取首张图 url
+            url, poll_data = await self._poll_task(
+                client,
+                f"{self.base_url}/api/generate/status?taskId={task_id}",
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                extract_status=lambda d: (
+                    d.get("data", {}).get("status", "") or d.get("status", "")
+                ),
+                extract_url=_first_image,
+            )
+            if not url:
+                return AssetResult(
+                    provider=self.name, url="",
+                    meta={"error": "no image url", "task_id": task_id, **poll_data},
+                )
+            local_path = self._download_asset(url, task_id, "image", "png")
             return AssetResult(
+                url=local_path,
                 provider=self.name,
-                url="",
-                meta={"task_id": task_id, "status": "submitted", "kind": "image", **params},
+                meta={"task_id": task_id, "kind": "image", **poll_data, **params},
             )

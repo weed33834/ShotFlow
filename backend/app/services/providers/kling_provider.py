@@ -12,8 +12,6 @@
 SIMULATE 模式兜底，无需 Key 即可验证全链路。
 """
 
-import json
-
 import httpx
 
 from app.services.providers.base import AssetResult, BaseProvider
@@ -25,8 +23,13 @@ _TASK_MODELS = {
     "anchor": "kling-video",      # 参考图保一致性（复用视频 + image 参数）
     "lipsync": "kling-lipsync",   # 对口型
 }
-_POLL_INTERVAL = 5
-_POLL_MAX = 120
+
+
+def _first_url(val) -> str:
+    """output.images 可能是 url 列表，统一取首个。"""
+    if isinstance(val, list):
+        return val[0] if val else ""
+    return val or ""
 
 
 class KlingProvider(BaseProvider):
@@ -82,14 +85,31 @@ class KlingProvider(BaseProvider):
                     url="",
                     meta={"error": "no task_id", "raw": data, **params},
                 )
+            # 轮询取结果：data.status 终态后从 data.output 取 video_url 或首张图
+            url, poll_data = await self._poll_task(
+                client,
+                f"{self.base_url}/api/v1/task/{task_id}",
+                headers=headers,
+                extract_status=lambda d: d.get("data", {}).get("status", ""),
+                extract_url=lambda d: (
+                    d.get("data", {}).get("output", {}).get("video_url", "")
+                    or _first_url(d.get("data", {}).get("output", {}).get("images"))
+                ),
+            )
+            if not url:
+                return AssetResult(
+                    provider=self.name, url="",
+                    meta={"error": "no asset url", "task_id": task_id, **poll_data},
+                )
+            local_path = self._download_asset(url, task_id, "video", "mp4")
             return AssetResult(
+                url=local_path,
                 provider=self.name,
-                url="",
                 meta={
                     "task_id": task_id,
-                    "status": "submitted",
                     "kind": kind,
                     "model": model,
+                    **poll_data,
                     **params,
                 },
             )

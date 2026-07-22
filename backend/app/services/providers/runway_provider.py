@@ -10,15 +10,19 @@
 SIMULATE 模式兜底，无需 Key 即可验证全链路。
 """
 
-import json
-
 import httpx
 
 from app.services.providers.base import AssetResult, BaseProvider
 
 _RUNWAY_BASE_URL = "https://api.runwayml.com/v1"
-_POLL_INTERVAL = 5
-_POLL_MAX = 120
+
+
+def _extract_output(d: dict) -> str:
+    """Runway 的 output 可能是 url 列表或单字符串，统一取首个。"""
+    out = d.get("output")
+    if isinstance(out, list):
+        return out[0] if out else ""
+    return out or ""
 
 
 class RunwayProvider(BaseProvider):
@@ -65,14 +69,28 @@ class RunwayProvider(BaseProvider):
                     url="",
                     meta={"error": "no task_id", "raw": data, **params},
                 )
+            # 轮询任务状态，终态后从 output 取视频 url
+            url, poll_data = await self._poll_task(
+                client,
+                f"{self.base_url}/tasks/{task_id}",
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                extract_status=lambda d: d.get("status", ""),
+                extract_url=_extract_output,
+            )
+            if not url:
+                return AssetResult(
+                    provider=self.name, url="",
+                    meta={"error": "no video url", "task_id": task_id, **poll_data},
+                )
+            local_path = self._download_asset(url, task_id, "video", "mp4")
             return AssetResult(
+                url=local_path,
                 provider=self.name,
-                url="",
                 meta={
                     "task_id": task_id,
-                    "status": "submitted",
                     "kind": "video",
                     "model": model,
+                    **poll_data,
                     **params,
                 },
             )

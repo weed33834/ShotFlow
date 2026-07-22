@@ -11,15 +11,21 @@
 SIMULATE 模式兜底，无需 Key 即可验证全链路。
 """
 
-import json
-
 import httpx
 
 from app.services.providers.base import AssetResult, BaseProvider
 
 _SUNO_BASE_URL = "https://api.sunoaiapi.com"
-_POLL_INTERVAL = 10
-_POLL_MAX = 60
+
+
+def _record(d: dict) -> dict:
+    """record 接口返回 data 为记录列表，取首条；兼容直接返回列表。"""
+    data = d.get("data")
+    if isinstance(data, list):
+        return data[0] if data else {}
+    if isinstance(data, dict):
+        return data
+    return {}
 
 
 class SunoProvider(BaseProvider):
@@ -67,8 +73,22 @@ class SunoProvider(BaseProvider):
                     url="",
                     meta={"error": "no task_id", "raw": data, **params},
                 )
+            # 轮询 record 接口：status 终态后取首条 audio_url
+            url, poll_data = await self._poll_task(
+                client,
+                f"{self.base_url}/api/v1/generate/record?ids={task_id}",
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                extract_status=lambda d: _record(d).get("status", ""),
+                extract_url=lambda d: _record(d).get("audio_url", ""),
+            )
+            if not url:
+                return AssetResult(
+                    provider=self.name, url="",
+                    meta={"error": "no audio url", "task_id": task_id, **poll_data},
+                )
+            local_path = self._download_asset(url, task_id, "audio", "mp3")
             return AssetResult(
+                url=local_path,
                 provider=self.name,
-                url="",
-                meta={"task_id": task_id, "status": "submitted", "kind": "audio", **params},
+                meta={"task_id": task_id, "kind": "audio", **poll_data, **params},
             )

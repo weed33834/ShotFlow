@@ -12,7 +12,7 @@
 SIMULATE 模式兜底，无需 Key 即可验证全链路。
 """
 
-import json
+from urllib.parse import urlparse
 
 import httpx
 
@@ -22,9 +22,6 @@ from app.services.providers.base import AssetResult, BaseProvider
 _WANX_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 _IMAGE_MODEL = "wanx2.2-t2i"
 _VIDEO_MODEL = "wan2.7-t2v"
-# 视频任务查询轮询间隔（秒），真实环境可调整
-_POLL_INTERVAL = 5
-_POLL_MAX = 60
 
 
 class WanxProvider(BaseProvider):
@@ -79,8 +76,8 @@ class WanxProvider(BaseProvider):
     async def _generate_video(self, params: dict) -> AssetResult:
         """文生视频：提交任务 → 轮询。
 
-        DashScope 万相视频使用任务（task）模式，先提交拿到 task_id 再轮询结果。
-        以下 Action / 路径以官方文档为准（此处保留结构，endpoint 用变量占位）。
+        DashScope 万相视频使用任务（task）模式，先提交拿到 task_id，
+        再用 /api/v1/tasks/{task_id} 轮询 output.task_status 直到终态。
         """
         prompt = params.get("prompt", "")
         duration = params.get("duration", 5)
@@ -106,15 +103,32 @@ class WanxProvider(BaseProvider):
                     url="",
                     meta={"error": "no task_id", "raw": data, **params},
                 )
-            # 轮询（真实环境按官方建议间隔；此处返回 task_id 占位）
+            # 任务查询接口与兼容模式接口同主机不同路径，从 base_url 取 host 拼装
+            parsed = urlparse(self.base_url)
+            poll_url = f"{parsed.scheme}://{parsed.netloc}/api/v1/tasks/{task_id}"
+            url, poll_data = await self._poll_task(
+                client,
+                poll_url,
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                extract_status=lambda d: d.get("output", {}).get("task_status", ""),
+                extract_url=lambda d: (
+                    (d.get("output", {}).get("results") or [{}])[0].get("url", "")
+                ),
+            )
+            if not url:
+                return AssetResult(
+                    provider=self.name, url="",
+                    meta={"error": "no video url", "task_id": task_id, **poll_data},
+                )
+            local_path = self._download_asset(url, task_id, "video", "mp4")
             return AssetResult(
+                url=local_path,
                 provider=self.name,
-                url="",
                 meta={
                     "task_id": task_id,
-                    "status": "submitted",
                     "kind": "video",
                     "model": _VIDEO_MODEL,
+                    **poll_data,
                     **params,
                 },
             )

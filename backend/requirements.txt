@@ -52,5 +52,8 @@ redis==5.3.1
 httpx==0.28.1
 PyYAML==6.0.3
 
+# Edge TTS（免费微软 TTS + WordBoundary 精确字幕时间轴）
+edge-tts>=7.0.0
+
 # 复用现有生成脚本所需的运行时依赖（与 08_Automation/requirements.txt 对齐）
 requests==2.34.2

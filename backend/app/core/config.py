@@ -138,6 +138,20 @@ class Settings(BaseSettings):
     # NovelAI（动漫专精图）
     NOVELAI_API_KEY: str = ""
 
+    # ===== LLM（Brain 脚本/分镜生成，OpenAI 兼容协议）=====
+    # 用于 orchestrator 的真实 brain，替代硬编码关键词匹配
+    LLM_API_KEY: str = ""
+    LLM_BASE_URL: str = ""
+    LLM_MODEL: str = "gpt-4o-mini"
+
+    # ===== 资产存储 =====
+    # 真实模式下生成资产落地于此目录下（按 task_id 隔离）
+    STORAGE_DIR: str = str(PROJECT_ROOT / "storage")
+
+    # ===== ffmpeg =====
+    # ffmpeg 二进制路径，空则从 PATH 查找
+    FFMPEG_PATH: str = ""
+
     @property
     def is_sqlite(self) -> bool:
         return self.DATABASE_URL.startswith("sqlite")

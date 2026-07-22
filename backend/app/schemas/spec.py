@@ -28,6 +28,9 @@ class AssembleReq(ORMBase):
     spec_id: Optional[int] = None
     asset_ids: list[int] = Field(default_factory=list)
     subtitles: list[str] = Field(default_factory=list)
+    # 每条字幕时长（秒），来自 edge-tts WordBoundary 精确时间轴；
+    # 缺失时 ffmpeg_service 按视频总时长均分。
+    subtitle_durations: list[float] = Field(default_factory=list)
 
 
 class GenerateReq(ORMBase):

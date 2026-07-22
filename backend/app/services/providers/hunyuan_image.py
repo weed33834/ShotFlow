@@ -9,7 +9,6 @@ import datetime
 import hashlib
 import hmac
 import json
-from typing import Optional
 
 import httpx
 
@@ -19,9 +18,16 @@ _TC_HOST = "aiart.tencentcloudapi.com"
 _TC_SERVICE = "aiart"
 _TC_REGION = "ap-guangzhou"
 _TC_VERSION = "2023-05-30"
-# 混元生图 3.0 提交任务 Action（以官方文档核对为准）
+# 混元生图 3.0 提交 / 查询任务 Action（以官方文档核对为准）
 _ACTION_SUBMIT = "SubmitTextToImageProJob"
 _ACTION_QUERY = "QueryTextToImageJob"
+
+
+def _first_or_str(val) -> str:
+    """ResultImage 可能是 url 列表或单字符串，统一取首个 url。"""
+    if isinstance(val, list):
+        return val[0] if val else ""
+    return val or ""
 
 
 def _tc_signature(secret_id: str, secret_key: str, payload: str, timestamp: int) -> str:
@@ -52,6 +58,9 @@ class HunyuanImageProvider(BaseProvider):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        # 腾讯云 CAM 密钥由上层通过 kwargs 注入，基类不统一存储
+        self.secret_id = kwargs.get("secret_id", "")
+        self.secret_key = kwargs.get("secret_key", "")
         self.host = _TC_HOST
         self.region = _TC_REGION
         self.version = _TC_VERSION
@@ -65,6 +74,7 @@ class HunyuanImageProvider(BaseProvider):
         ref_images: list[str] = params.get("ref_images", [])
         # 真实调用（结构完整，Action 名以官方文档为准）
         timestamp = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+        date = datetime.datetime.utcfromtimestamp(timestamp).strftime("%Y-%m-%d")
         body = {
             "Prompt": prompt,
             # 混元生图 3.0 支持最多 3 张参考图做一致性锚定
@@ -80,8 +90,9 @@ class HunyuanImageProvider(BaseProvider):
             "X-TC-Version": self.version,
             "X-TC-Region": self.region,
             "X-TC-Timestamp": str(timestamp),
+            # Credential 段第二段必须是日期(YYYY-MM-DD)，早期误填 region 导致签名校验失败
             "Authorization": (
-                f"TC3-HMAC-SHA256 Credential={self.secret_id}/{self.region}/{_TC_SERVICE}"
+                f"TC3-HMAC-SHA256 Credential={self.secret_id}/{date}/{_TC_SERVICE}"
                 f"/tc3_request, SignedHeaders=content-type;host, "
                 f"Signature={signature}"
             ),
@@ -99,9 +110,47 @@ class HunyuanImageProvider(BaseProvider):
                     url="",
                     meta={"error": data.get("Response", {}).get("Error", "no job_id")},
                 )
-            # 轮询查询结果（真实环境按官方轮询间隔；此处占位返回 job_id）
+            # 轮询查询出图结果：轮询开始时签名一次，TC3 允许 ~10min 时钟偏差，
+            # 默认 300s 轮询窗口内单次签名仍有效，避免每轮重签
+            query_body = {"JobId": job_id}
+            query_payload = json.dumps(query_body, ensure_ascii=False)
+            query_ts = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+            query_sig = _tc_signature(
+                self.secret_id, self.secret_key, query_payload, query_ts
+            )
+            query_date = datetime.datetime.utcfromtimestamp(query_ts).strftime("%Y-%m-%d")
+            query_headers = {
+                "Content-Type": "application/json",
+                "Host": self.host,
+                "X-TC-Action": _ACTION_QUERY,
+                "X-TC-Version": self.version,
+                "X-TC-Region": self.region,
+                "X-TC-Timestamp": str(query_ts),
+                "Authorization": (
+                    f"TC3-HMAC-SHA256 Credential={self.secret_id}/{query_date}/{_TC_SERVICE}"
+                    f"/tc3_request, SignedHeaders=content-type;host, "
+                    f"Signature={query_sig}"
+                ),
+            }
+            url, poll_data = await self._poll_task(
+                client,
+                f"https://{self.host}/",
+                headers=query_headers,
+                method="POST",
+                json_body=query_body,
+                extract_status=lambda d: d.get("Response", {}).get("JobStatus", ""),
+                extract_url=lambda d: _first_or_str(
+                    d.get("Response", {}).get("ResultImage")
+                ),
+            )
+            if not url:
+                return AssetResult(
+                    provider=self.name, url="",
+                    meta={"error": "no image url", "job_id": job_id, **poll_data},
+                )
+            local_path = self._download_asset(url, job_id, "image", "png")
             return AssetResult(
+                url=local_path,
                 provider=self.name,
-                url="",
-                meta={"job_id": job_id, "status": "submitted", "kind": kind, **params},
+                meta={"job_id": job_id, "kind": kind, **poll_data, **params},
             )

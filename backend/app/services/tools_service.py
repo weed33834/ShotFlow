@@ -4,10 +4,6 @@
 所有 generate_* 在 SIMULATE_MODE 下返回占位资产（url=simulate://...），保证无 Key 跑通全链路。
 """
 
-import asyncio
-import os
-import subprocess
-
 from app.core.config import settings
 from app.models import Asset, GenerationTask, Spec
 from app.services.providers import get_provider
@@ -57,7 +53,7 @@ async def run_tool(req: ToolGenerateReq, db, tool: str = "generate", spec_id: in
     db.commit()
     db.refresh(asset)
 
-    task.status = "completed" if result.url else "completed"
+    task.status = "completed" if result.url else "failed"
     task.result_asset_id = asset.id
     db.commit()
 
@@ -93,9 +89,92 @@ async def assemble(req: AssembleReq, db) -> ToolResult:
         db.commit()
         return ToolResult(asset_id=asset.id, url=asset.path, provider="ffmpeg", meta=asset.meta)
 
-    # 真实组装：用 ffmpeg 拼接 asset_ids 对应视频 + 混音 + 字幕
-    # TODO(Phase E): 实现 ffmpeg 拼接/混音/字幕硬压，输出到存储并回写 url
-    raise NotImplementedError("真实 assemble 在 Phase E 接入 ffmpeg 实现")
+    # 真实组装：用 ffmpeg 拼接 asset_ids 对应视频 + 混音 + 字幕硬压
+    # 延迟导入避免无 ffmpeg 环境 import 报错（ffmpeg_service 自身不做 import 期检查）
+    from pathlib import Path
+
+    from app.services.ffmpeg_service import assemble_video, classify_asset, is_ffmpeg_available
+
+    if not is_ffmpeg_available():
+        msg = (
+            "ffmpeg 不可用：未配置 FFMPEG_PATH 且 PATH 中未找到 ffmpeg。"
+            "请安装 ffmpeg 或在 .env 中设置 FFMPEG_PATH，或开启 SIMULATE_MODE 走模拟流程。"
+        )
+        task.status = "failed"
+        task.error = msg
+        db.commit()
+        raise RuntimeError(msg)
+
+    # 查 asset_ids 对应的 Asset 记录，按请求顺序排列
+    assets = db.query(Asset).filter(Asset.id.in_(req.asset_ids)).all()
+    asset_map = {a.id: a for a in assets}
+    ordered_assets = [asset_map[aid] for aid in req.asset_ids if aid in asset_map]
+
+    if not ordered_assets:
+        msg = f"未找到任何有效资产: asset_ids={req.asset_ids}"
+        task.status = "failed"
+        task.error = msg
+        db.commit()
+        raise ValueError(msg)
+
+    # 按类型分类：video/image → 拼接素材，audio → 配音/BGM
+    asset_paths: list[str] = []
+    audio_candidates: list[str] = []
+    for a in ordered_assets:
+        kind = classify_asset(a.asset_type, a.path)
+        if kind == "audio":
+            audio_candidates.append(a.path)
+        else:
+            asset_paths.append(a.path)
+
+    # 第一个音频作配音，第二个作 BGM（AssembleReq 不区分，按顺序约定）
+    audio_path = audio_candidates[0] if audio_candidates else ""
+    bgm_path = audio_candidates[1] if len(audio_candidates) > 1 else ""
+
+    if not asset_paths:
+        msg = "没有可拼接的视频/图片资产（asset_ids 全为音频）"
+        task.status = "failed"
+        task.error = msg
+        db.commit()
+        raise ValueError(msg)
+
+    # 输出路径：STORAGE_DIR/assembled/assemble_{task_id}.mp4
+    output_dir = Path(settings.STORAGE_DIR) / "assembled"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = str(output_dir / f"assemble_{task.id}.mp4")
+
+    try:
+        result_path = assemble_video(
+            asset_paths=asset_paths,
+            audio_path=audio_path,
+            subtitles=req.subtitles,
+            subtitle_durations=req.subtitle_durations or None,
+            bgm_path=bgm_path,
+            output_path=output_path,
+            task_id=str(task.id),
+        )
+    except Exception as e:
+        task.status = "failed"
+        task.error = str(e)[:2000]
+        db.commit()
+        raise
+
+    # 存成片为 Asset 记录
+    asset = Asset(
+        asset_type="video",
+        path=result_path,
+        filename=Path(result_path).name,
+        project_id=req.spec_id,
+        tags=["assemble", "ffmpeg"],
+        meta={"asset_ids": req.asset_ids, "subtitles": req.subtitles},
+    )
+    db.add(asset)
+    db.commit()
+    db.refresh(asset)
+    task.status = "completed"
+    task.result_asset_id = asset.id
+    db.commit()
+    return ToolResult(asset_id=asset.id, url=result_path, provider="ffmpeg", meta=asset.meta)
 
 
 def save_spec(req, db) -> Spec:

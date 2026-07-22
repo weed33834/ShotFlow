@@ -58,6 +58,9 @@ class HunyuanVideoProvider(BaseProvider):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        # 腾讯云 CAM 密钥由上层通过 kwargs 注入，基类不统一存储
+        self.secret_id = kwargs.get("secret_id", "")
+        self.secret_key = kwargs.get("secret_key", "")
         self.host = _TC_HOST
         self.region = _TC_REGION
         self.version = _TC_VERSION
@@ -76,6 +79,7 @@ class HunyuanVideoProvider(BaseProvider):
         prompt = params.get("prompt", "")
         duration = params.get("duration", 5)
         timestamp = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+        date = datetime.datetime.utcfromtimestamp(timestamp).strftime("%Y-%m-%d")
         body = {
             "Prompt": prompt,
             "Duration": duration,
@@ -89,8 +93,9 @@ class HunyuanVideoProvider(BaseProvider):
             "X-TC-Version": self.version,
             "X-TC-Region": self.region,
             "X-TC-Timestamp": str(timestamp),
+            # Credential 段第二段必须是日期(YYYY-MM-DD)，早期误填 region 导致签名校验失败
             "Authorization": (
-                f"TC3-HMAC-SHA256 Credential={self.secret_id}/{self.region}/{_TC_SERVICE}"
+                f"TC3-HMAC-SHA256 Credential={self.secret_id}/{date}/{_TC_SERVICE}"
                 f"/tc3_request, SignedHeaders=content-type;host, "
                 f"Signature={signature}"
             ),
@@ -108,8 +113,48 @@ class HunyuanVideoProvider(BaseProvider):
                     url="",
                     meta={"error": data.get("Response", {}).get("Error", "no job_id")},
                 )
+            # 轮询查询视频结果：轮询开始时签名一次，TC3 允许 ~10min 时钟偏差，
+            # 默认 300s 轮询窗口内单次签名仍有效，避免每轮重签
+            query_body = {"JobId": job_id}
+            query_payload = json.dumps(query_body, ensure_ascii=False)
+            query_ts = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+            query_sig = _tc_signature(
+                self.secret_id, self.secret_key, query_payload, query_ts
+            )
+            query_date = datetime.datetime.utcfromtimestamp(query_ts).strftime("%Y-%m-%d")
+            query_headers = {
+                "Content-Type": "application/json",
+                "Host": self.host,
+                "X-TC-Action": _ACTION_QUERY,
+                "X-TC-Version": self.version,
+                "X-TC-Region": self.region,
+                "X-TC-Timestamp": str(query_ts),
+                "Authorization": (
+                    f"TC3-HMAC-SHA256 Credential={self.secret_id}/{query_date}/{_TC_SERVICE}"
+                    f"/tc3_request, SignedHeaders=content-type;host, "
+                    f"Signature={query_sig}"
+                ),
+            }
+            url, poll_data = await self._poll_task(
+                client,
+                f"https://{self.host}/",
+                headers=query_headers,
+                method="POST",
+                json_body=query_body,
+                extract_status=lambda d: d.get("Response", {}).get("JobStatus", ""),
+                extract_url=lambda d: (
+                    d.get("Response", {}).get("ResultVideoUrl", "")
+                    or d.get("Response", {}).get("VideoUrl", "")
+                ),
+            )
+            if not url:
+                return AssetResult(
+                    provider=self.name, url="",
+                    meta={"error": "no video url", "job_id": job_id, **poll_data},
+                )
+            local_path = self._download_asset(url, job_id, "video", "mp4")
             return AssetResult(
+                url=local_path,
                 provider=self.name,
-                url="",
-                meta={"job_id": job_id, "status": "submitted", "kind": kind, **params},
+                meta={"job_id": job_id, "kind": kind, **poll_data, **params},
             )

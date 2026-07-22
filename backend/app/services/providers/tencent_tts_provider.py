@@ -11,13 +11,17 @@
 - 以腾讯云官方计费页为准。SIMULATE 模式兜底，无需 Key 即可验证全链路。
 """
 
+import base64
 import datetime
 import hashlib
 import hmac
 import json
+import time
+from pathlib import Path
 
 import httpx
 
+from app.core.config import settings
 from app.services.providers.base import AssetResult, BaseProvider
 
 _TC_HOST = "tts.tencentcloudapi.com"
@@ -55,6 +59,9 @@ class TencentTtsProvider(BaseProvider):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        # 腾讯云 CAM 密钥由上层通过 kwargs 注入，基类不统一存储
+        self.secret_id = kwargs.get("secret_id", "")
+        self.secret_key = kwargs.get("secret_key", "")
         self.host = _TC_HOST
         self.region = _TC_REGION
         self.version = _TC_VERSION
@@ -72,11 +79,13 @@ class TencentTtsProvider(BaseProvider):
 
         text = params.get("text", params.get("prompt", ""))
         timestamp = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+        date = datetime.datetime.utcfromtimestamp(timestamp).strftime("%Y-%m-%d")
+        codec = params.get("codec", "mp3") or "mp3"
         body = {
             "Text": text,
             "SessionId": params.get("session_id", "shotflow"),
             "VoiceType": params.get("voice_type", 1001),  # 精品音色 ID
-            "Codec": params.get("codec", "mp3"),
+            "Codec": codec,
             "SampleRate": params.get("sample_rate", 16000),
         }
         payload = json.dumps(body, ensure_ascii=False)
@@ -88,8 +97,9 @@ class TencentTtsProvider(BaseProvider):
             "X-TC-Version": self.version,
             "X-TC-Region": self.region,
             "X-TC-Timestamp": str(timestamp),
+            # Credential 段第二段必须是日期(YYYY-MM-DD)，早期误填 region 导致签名校验失败
             "Authorization": (
-                f"TC3-HMAC-SHA256 Credential={self.secret_id}/{self.region}/{_TC_SERVICE}"
+                f"TC3-HMAC-SHA256 Credential={self.secret_id}/{date}/{_TC_SERVICE}"
                 f"/tc3_request, SignedHeaders=content-type;host, "
                 f"Signature={signature}"
             ),
@@ -110,8 +120,19 @@ class TencentTtsProvider(BaseProvider):
                         **params,
                     },
                 )
+            # 同步接口：base64 音频直接落盘到本地，避免返回 url="" 链路断裂
+            audio_bytes = base64.b64decode(audio)
+            storage_root = (
+                Path(settings.STORAGE_DIR)
+                if settings.STORAGE_DIR
+                else Path(settings.PROJECT_ROOT) / "storage"
+            )
+            task_dir = storage_root / "tasks" / (params.get("task_id", "") or "default")
+            task_dir.mkdir(parents=True, exist_ok=True)
+            local_path = task_dir / f"{self.name}_audio_{int(time.time())}.{codec}"
+            local_path.write_bytes(audio_bytes)
             return AssetResult(
                 provider=self.name,
-                url="",  # 真实环境应将 base64 音频存入对象存储并返回 url
-                meta={"audio": audio, "status": "done", "kind": "audio", **params},
+                url=str(local_path),
+                meta={"status": "done", "kind": "audio", "codec": codec, **params},
             )

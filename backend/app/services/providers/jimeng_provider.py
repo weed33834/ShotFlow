@@ -11,8 +11,6 @@
 SIMULATE 模式兜底，无需 Key 即可验证全链路。
 """
 
-import json
-
 import httpx
 
 from app.services.providers.base import AssetResult, BaseProvider
@@ -20,9 +18,17 @@ from app.services.providers.base import AssetResult, BaseProvider
 _JIMENG_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3"
 # 模型名以官方文档为准（即梦在方舟上的 endpoint id）
 _IMAGE_MODEL = "jimeng-image"   # 占位，实际为方舟 endpoint id
-_VIDEO_MODEL = "jimeng-video"   # 占位，实际为方舟 endpoint id
-_POLL_INTERVAL = 5
-_POLL_MAX = 120
+_VIDEO_MODEL = "jimeng-video"  # 占位，实际为方舟 endpoint id
+
+
+def _extract_video_url(d: dict) -> str:
+    """方舟视频结果 url 字段命名以官方文档为准，兼容多种常见字段。"""
+    out = d.get("output", {}) or {}
+    return (
+        out.get("video_url", "")
+        or out.get("url", "")
+        or (out.get("videos")[0] if isinstance(out.get("videos"), list) and out.get("videos") else "")
+    )
 
 
 class JimengProvider(BaseProvider):
@@ -73,7 +79,7 @@ class JimengProvider(BaseProvider):
             )
 
     async def _submit_video(self, params: dict) -> AssetResult:
-        """文生视频：提交任务 → 轮询（方舟视频任务接口，路径以官方文档为准）。"""
+        """文生视频：提交方舟视频任务 → 轮询查询 → 下载。"""
         prompt = params.get("prompt", "")
         body = {
             "model": _VIDEO_MODEL,
@@ -97,14 +103,28 @@ class JimengProvider(BaseProvider):
                     url="",
                     meta={"error": "no task_id", "raw": data, **params},
                 )
+            # 轮询方舟视频任务，终态后从 output 取视频 url
+            url, poll_data = await self._poll_task(
+                client,
+                f"{self.base_url}/tasks/{task_id}",
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                extract_status=lambda d: d.get("status", ""),
+                extract_url=_extract_video_url,
+            )
+            if not url:
+                return AssetResult(
+                    provider=self.name, url="",
+                    meta={"error": "no video url", "task_id": task_id, **poll_data},
+                )
+            local_path = self._download_asset(url, task_id, "video", "mp4")
             return AssetResult(
+                url=local_path,
                 provider=self.name,
-                url="",
                 meta={
                     "task_id": task_id,
-                    "status": "submitted",
                     "kind": "video",
                     "model": _VIDEO_MODEL,
+                    **poll_data,
                     **params,
                 },
             )
