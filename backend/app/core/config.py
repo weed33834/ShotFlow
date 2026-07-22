@@ -132,19 +132,28 @@ class Settings(BaseSettings):
     SUNO_API_KEY: str = ""
     SUNO_BASE_URL: str = "https://api.sunoaiapi.com"
 
+    # 自动发布平台（各平台需配置对应 access_token / cookie 后才能真实发布）
+    DOUYIN_ACCESS_TOKEN: str = ""
+    BILIBILI_SESSDATA: str = ""
+
     # Liblib（图，LoRA 生态）
     LIBLIB_API_KEY: str = ""
 
     # NovelAI（动漫专精图）
     NOVELAI_API_KEY: str = ""
 
-    # ===== LLM（Brain 脚本/分镜生成，OpenAI 兼容协议）=====
-    # 用于 orchestrator 的真实 brain，替代硬编码关键词匹配
+    # ===== LLM（Brain 脚本/分镜生成，多 Provider 适配）=====
+    # 用于 orchestrator 的真实 brain，替代硬编码关键词匹配。
+    # 认证 Key 统一走 LLM_API_KEY；base_url/model 未显式配置时按 LLM_PROVIDER 回落默认值。
     LLM_API_KEY: str = ""
     LLM_BASE_URL: str = ""
     LLM_MODEL: str = "gpt-4o-mini"
-    # LLM provider 名称（openai/claude/gemini/deepseek/moonshot/ollama），
-    # 供 llm_provider 注册表解析默认 model/base_url，空则用 LLM_API_KEY + LLM_BASE_URL 直连
+    # LLM provider 名称，决定 llm_service.chat_completion 走哪条适配协议：
+    #   openai / deepseek / moonshot / ollama → OpenAI 兼容协议（/chat/completions + Bearer）
+    #   gemini  → Google 原生 generateContent（key 拼在 query，body 用 contents）
+    #   claude  → Anthropic 原生 messages（header x-api-key + anthropic-version）
+    # 留空则回退原始 OpenAI 兼容直连（向后兼容：依赖 LLM_BASE_URL + LLM_MODEL 显式配置）。
+    # LLM_BASE_URL / LLM_MODEL 非空时覆盖对应 provider 的默认 base_url / model。
     LLM_PROVIDER: str = ""
 
     # ===== 资产存储 =====

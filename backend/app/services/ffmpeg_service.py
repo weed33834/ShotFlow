@@ -43,6 +43,25 @@ _DEFAULT_FPS = 30
 # 单次 ffmpeg 调用超时（秒），防止卡死
 _FFMPEG_TIMEOUT = 1800
 
+# 画面比例 → 目标分辨率映射（用户前端选择后直接控制输出尺寸）
+_ASPECT_RESOLUTIONS: dict[str, tuple[int, int]] = {
+    "16:9": (1920, 1080),
+    "9:16": (1080, 1920),
+    "1:1": (1080, 1080),
+    "4:3": (1440, 1080),
+    "3:4": (1080, 1440),
+}
+
+
+def _resolve_aspect_resolution(video_aspect: str, probe_resolution: tuple[int, int]) -> tuple[int, int]:
+    """根据用户选择的画面比例返回目标分辨率。
+
+    有明确比例时直接映射；空串时用探测到的首个资产分辨率，探测失败兜底默认值。
+    """
+    if video_aspect and video_aspect in _ASPECT_RESOLUTIONS:
+        return _ASPECT_RESOLUTIONS[video_aspect]
+    return probe_resolution if probe_resolution != _DEFAULT_RESOLUTION else _DEFAULT_RESOLUTION
+
 # drawtext 兜底字体候选（subtitles 滤镜不可用时用 drawtext 烧字幕）
 _FONT_CANDIDATES = [
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
@@ -535,6 +554,7 @@ def assemble_video(
     bgm_path: str = "",
     output_path: str = "",
     task_id: str = "default",
+    video_aspect: str = "",
 ) -> str:
     """用 ffmpeg 把多段视频/图片+音频+字幕合成成片，返回输出文件路径。
 
@@ -546,6 +566,7 @@ def assemble_video(
         bgm_path: 背景音乐路径（可选）
         output_path: 输出路径（空则用 STORAGE_DIR/assembled/assemble_{task_id}.mp4）
         task_id: 任务 ID（用于默认输出路径与临时目录命名）
+        video_aspect: 画面比例（16:9/9:16/1:1/4:3/3:4，空则用首个资产分辨率）
     """
     if not asset_paths:
         raise ValueError("asset_paths 不能为空：至少需要一个视频/图片资产")
@@ -568,8 +589,9 @@ def assemble_video(
     with tempfile.TemporaryDirectory(prefix=f"shotflow_{task_id}_") as tmpdir:
         work = Path(tmpdir)
 
-        # 确定目标分辨率：取第一个资产的分辨率，探测失败兜底默认值
-        resolution = _probe_resolution(validated_inputs[0])
+        # 确定目标分辨率：优先用用户选择的画面比例，否则取首个资产的分辨率
+        probed = _probe_resolution(validated_inputs[0])
+        resolution = _resolve_aspect_resolution(video_aspect, probed)
 
         # 推算图片展示时长（有配音时按配音时长均分）
         num_images = sum(1 for p in validated_inputs if _is_image(p))

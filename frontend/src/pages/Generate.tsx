@@ -19,14 +19,17 @@ import {
   Switch,
   Tag,
   Typography,
+  Upload,
 } from "antd";
 import {
   CaretRightOutlined,
+  InboxOutlined,
   PictureOutlined,
   VideoCameraOutlined,
   SoundOutlined,
   FontSizeOutlined,
 } from "@ant-design/icons";
+import type { UploadFile } from "antd";
 import { generateApi, toolsApi } from "@/api";
 import type { GenerateRequest, GenerateResponse, OutputType, ToolResult } from "@/types";
 
@@ -57,6 +60,7 @@ const VOICE_OPTIONS = [
   { value: "female_ja", label: "女声（日文）" },
   { value: "male_ja", label: "男声（日文）" },
   { value: "female_ko", label: "女声（韩文）" },
+  { value: "clone_cosyvoice", label: "语音克隆（CosyVoice）" },
 ];
 
 const COPYRIGHT_HINT = "本平台仅提供生成工具，所用素材/角色/音乐的版权由使用者自行负责";
@@ -90,12 +94,30 @@ export default function Generate() {
   const qc = useQueryClient();
   const [form] = Form.useForm();
   const [outputType, setOutputType] = useState<OutputType>("video");
+  // Upload 组件文件列表状态（驱动 UI + 从 response 提取 asset_id）
+  const [uploadFileList, setUploadFileList] = useState<UploadFile[]>([]);
+
+  // 从已上传成功的文件列表中提取 asset_id（保持与文件列表同步）
+  const uploadedAssetIds = uploadFileList
+    .filter((f) => f.status === "done" && f.response)
+    .map((f) => Number((f.response as ToolResult).asset_id))
+    .filter((id) => !Number.isNaN(id));
 
   // 查询系统配置状态
   const configQ = useQuery({
     queryKey: ["tools-providers"],
     queryFn: toolsApi.providers,
     staleTime: 30000,
+  });
+
+  // 本地素材上传：逐个文件调 /tools/upload，成功响应存入 UploadFile.response
+  const uploadMut = useMutation({
+    mutationFn: toolsApi.upload,
+    onError: (e: Error) => {
+      message.error(
+        (e as Error & { friendlyMessage?: string }).friendlyMessage || e.message
+      );
+    },
   });
 
   const genMut = useMutation({
@@ -132,6 +154,7 @@ export default function Generate() {
       voice_name: values.voice_name || "",
       subtitle_enabled: values.subtitle_enabled ?? true,
       bgm_enabled: values.bgm_enabled ?? true,
+      local_asset_ids: uploadedAssetIds.length > 0 ? uploadedAssetIds : undefined,
     };
     genMut.mutate(payload);
   };
@@ -139,6 +162,8 @@ export default function Generate() {
   const simMode = configQ.data?.simulate_mode ?? false;
   const llmOk = configQ.data?.llm_configured ?? false;
   const ffmpegOk = configQ.data?.ffmpeg_available ?? false;
+  const llmProvider = configQ.data?.llm_provider ?? "openai";
+  const llmModel = configQ.data?.llm_model ?? "gpt-4o-mini";
 
   return (
     <div>
@@ -152,6 +177,12 @@ export default function Generate() {
           </Tag>
           <Tag color={llmOk ? "green" : "red"}>
             LLM: {llmOk ? "已配置" : "未配置"}
+          </Tag>
+          <Tag color={llmOk ? "blue" : "default"}>
+            Provider: {llmProvider}
+          </Tag>
+          <Tag color={llmOk ? "geekblue" : "default"}>
+            Model: {llmModel}
           </Tag>
           <Tag color={ffmpegOk ? "green" : "red"}>
             FFmpeg: {ffmpegOk ? "可用" : "不可用"}
@@ -266,6 +297,85 @@ export default function Generate() {
             </Typography.Text>
           </Space>
         </Form>
+      </Card>
+
+      {/* 本地素材导入：上传图片/视频/音频，S5 组装时追加到生成资产之后 */}
+      <Card
+        size="small"
+        style={{ marginBottom: 16 }}
+        title={
+          <Space>
+            <InboxOutlined />
+            本地素材导入
+          </Space>
+        }
+        extra={
+          uploadedAssetIds.length > 0 ? (
+            <Space>
+              <Tag color="green">已上传 {uploadedAssetIds.length} 个</Tag>
+              <Typography.Link
+                onClick={() => {
+                  setUploadFileList([]);
+                }}
+              >
+                清空
+              </Typography.Link>
+            </Space>
+          ) : null
+        }
+      >
+        <Upload.Dragger
+          multiple
+          fileList={uploadFileList}
+          // 接受图片/视频/音频，与后端 _classify_by_extension 后缀表一致
+          accept="image/*,video/*,audio/*,.flv,.mkv,.m4v,.m4a,.ogg,.flac,.bmp,.webp"
+          // 禁用 antd 自动上传，手动调 toolsApi.upload，响应存入 UploadFile.response
+          customRequest={({ file, onSuccess, onError }) => {
+            uploadMut.mutate(file as File, {
+              onSuccess: (res) => {
+                // antd 拿到 onSuccess 后会标记 file.status=done 并存 response
+                onSuccess?.(res, file);
+                message.success(`上传成功：${(file as File).name}（asset_id=${res.asset_id}）`);
+                qc.invalidateQueries({ queryKey: ["tools-assets"] });
+              },
+              onError: (err) => {
+                onError?.(err);
+              },
+            });
+          }}
+          onChange={({ fileList }) => {
+            // 同步文件列表状态，asset_id 从 done 状态文件的 response 派生
+            setUploadFileList(fileList);
+          }}
+          onRemove={(file) => {
+            // 仅从文件列表移除，uploadedAssetIds 会自动重新派生
+            setUploadFileList((prev) => prev.filter((f) => f.uid !== file.uid));
+            message.info(`已从列表移除：${file.name}`);
+            return true;
+          }}
+        >
+          <p className="ant-upload-drag-icon">
+            <InboxOutlined />
+          </p>
+          <p className="ant-upload-text">点击或拖拽文件到此区域上传</p>
+          <p className="ant-upload-hint">
+            支持图片 / 视频 / 音频，单个文件不超过 100MB，可多选
+          </p>
+        </Upload.Dragger>
+        {uploadedAssetIds.length > 0 && (
+          <div style={{ marginTop: 12 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              将随生成请求一起传给编排器参与拼接：
+            </Typography.Text>
+            <Space wrap style={{ marginTop: 4 }}>
+              {uploadedAssetIds.map((id) => (
+                <Tag key={id} color="blue">
+                  asset_id: {id}
+                </Tag>
+              ))}
+            </Space>
+          </div>
+        )}
       </Card>
 
       {/* 生成结果 */}

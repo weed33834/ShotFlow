@@ -302,6 +302,8 @@ export interface GenerateRequest {
   voice_name?: string;
   subtitle_enabled?: boolean;
   bgm_enabled?: boolean;
+  // 上传的本地素材 asset_id 列表，S5 组装时追加到生成资产之后参与拼接
+  local_asset_ids?: number[];
 }
 
 export interface GenerateResponse {
@@ -323,5 +325,7 @@ export interface ProvidersConfig {
   providers: string[];
   simulate_mode: boolean;
   llm_configured: boolean;
+  llm_provider: string;
+  llm_model: string;
   ffmpeg_available: boolean;
 }

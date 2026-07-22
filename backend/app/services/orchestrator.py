@@ -30,6 +30,7 @@ class Orchestrator:
         voice_name: str = "",
         subtitle_enabled: bool = True,
         bgm_enabled: bool = True,
+        local_asset_ids: list[int] | None = None,
     ) -> int:
         # 读流程文件（存在性校验，实际脑补见 _brain）
         flow_path = PROJECT_ROOT / "flows" / f"make_{output_type}.sop.md"
@@ -70,6 +71,8 @@ class Orchestrator:
 
         # 收集所有生成的 asset_id，供 S5 组装使用
         asset_ids: list[int] = []
+        video_asset_ids: list[int] = []  # 视频资产 ID（供 lip_sync 使用）
+        audio_asset_ids: list[int] = []  # 音频资产 ID（供 lip_sync 使用）
         if anchor_result and anchor_result.asset_id:
             asset_ids.append(anchor_result.asset_id)
 
@@ -103,13 +106,19 @@ class Orchestrator:
                 )
                 if vid_result and vid_result.asset_id:
                     asset_ids.append(vid_result.asset_id)
+                    video_asset_ids.append(vid_result.asset_id)
 
                 # 音频生成：优先 edge-tts（带 WordBoundary 精确字幕），失败回退 tencent_tts
                 audio_text = shot["audio"]["text"]
                 audio_voice = shot["audio"]["voice"]
+                _audio_ids_before = len(asset_ids)
                 tts_wbs = await self._generate_audio(
                     audio_text, audio_voice, spec.id, db, asset_ids, _tts_time_offset,
                 )
+                # 记录新增的音频 asset_id（_generate_audio 可能追加 1 个）
+                if len(asset_ids) > _audio_ids_before:
+                    audio_asset_ids.append(asset_ids[-1])
+
                 if tts_wbs is not None:
                     # edge-tts 成功：记录 WordBoundary（已带偏移），更新累计时长
                     all_word_boundaries.extend(tts_wbs)
@@ -117,6 +126,9 @@ class Orchestrator:
                 else:
                     # 回退 tencent_tts：字幕时间轴用 shot duration 估算
                     _tts_time_offset += float(shot.get("duration", 5))
+
+        # S4.5 可选口型同步（HeyGen），无 Key 或 SIMULATE 模式时静默跳过
+        await self._try_lip_sync(video_asset_ids, audio_asset_ids, spec.id, db)
 
         # S5 组装成片
         # 有 edge-tts WordBoundary 时用精确时间轴，否则用 shot duration 估算
@@ -128,12 +140,27 @@ class Orchestrator:
         else:
             subtitles, subtitle_durations = [], []
 
+        # bgm_enabled=True 时尝试生成 BGM（Suno），失败则静默跳过
+        bgm_asset_id = None
+        if bgm_enabled:
+            bgm_asset_id = await self._generate_bgm(spec_data, spec.id, db)
+
+        # 用户上传的本地素材追加到生成资产之后参与拼接/混音
+        # 去重避免同一 asset_id 被重复拼接（用户可能误传已生成的 id）
+        if local_asset_ids:
+            for aid in local_asset_ids:
+                if aid not in asset_ids:
+                    asset_ids.append(aid)
+
+        # 组装时传入 video_aspect 控制输出分辨率，bgm_enabled 控制是否混入 BGM
         await svc.assemble(
             AssembleReq(
                 spec_id=spec.id,
                 asset_ids=asset_ids,
                 subtitles=subtitles,
                 subtitle_durations=subtitle_durations,
+                video_aspect=video_aspect,
+                bgm_enabled=bgm_enabled,
             ),
             db,
         )
@@ -198,6 +225,64 @@ class Orchestrator:
         if aud_result and aud_result.asset_id:
             asset_ids.append(aud_result.asset_id)
         return None
+
+    async def _generate_bgm(self, spec_data: dict, spec_id: int, db) -> int | None:
+        """尝试生成背景音乐（Suno），失败静默跳过。
+
+        BGM 是可选增强，不应阻断主流程。无 SUNO_API_KEY 或 SIMULATE 模式时
+        返回 None，assemble 时不传 BGM 轨。
+        """
+        try:
+            bgm_result = await svc.run_tool(
+                ToolGenerateReq(
+                    provider="suno",
+                    kind="audio",
+                    params={
+                        "prompt": f"为《{spec_data.get('title', '短片')}》生成背景音乐，轻快风格",
+                        "kind": "music",
+                    },
+                ),
+                db,
+                spec_id=spec_id,
+            )
+            if bgm_result and bgm_result.asset_id:
+                return bgm_result.asset_id
+        except Exception as exc:
+            logger.warning("BGM 生成失败（Suno），跳过: %s", exc)
+        return None
+
+    async def _try_lip_sync(
+        self,
+        video_asset_ids: list[int],
+        audio_asset_ids: list[int],
+        spec_id: int,
+        db,
+    ) -> None:
+        """可选口型同步（HeyGen），无 Key 或失败时静默跳过。
+
+        仅在 HEYGEN_API_KEY 已配置且非 SIMULATE 模式时尝试。
+        lip_sync 是锦上添花功能，不阻断主流程。
+        """
+        if not settings.HEYGEN_API_KEY or settings.SIMULATE_MODE:
+            return
+        if not video_asset_ids or not audio_asset_ids:
+            return
+        try:
+            await svc.run_tool(
+                ToolGenerateReq(
+                    provider="heygen",
+                    kind="lipsync",
+                    params={
+                        "video_asset_id": video_asset_ids[-1],
+                        "audio_asset_id": audio_asset_ids[-1],
+                    },
+                ),
+                db,
+                spec_id=spec_id,
+            )
+            logger.info("lip_sync 完成 (HeyGen)")
+        except Exception as exc:
+            logger.warning("lip_sync 失败（HeyGen），跳过: %s", exc)
 
     def _build_subtitle_data(
         self,

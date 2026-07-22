@@ -99,6 +99,12 @@ export const caseStudiesApi = {
 export const generateApi = {
   generate: (payload: GenerateRequest) =>
     http.post<GenerateResponse>("/generate", payload).then((r) => r.data),
+  // 批量生成：同一 prompt 生成 count 个变体
+  batch: (payload: GenerateRequest & { count: number }) =>
+    http.post<GenerateResponse & { results: { spec_id: number | null; error: string | null }[] }>(
+      "/generate/batch",
+      payload,
+    ).then((r) => r.data),
 };
 
 export const toolsApi = {
@@ -106,4 +112,51 @@ export const toolsApi = {
     http.get<ToolResult[]>("/tools/assets").then((r) => r.data),
   providers: () =>
     http.get<ProvidersConfig>("/tools/providers").then((r) => r.data),
+  // 上传本地素材文件（图片/视频/音频），返回入库后的 Asset 信息
+  upload: (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return http
+      .post<ToolResult>("/tools/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+      .then((r) => r.data);
+  },
+  // ASR 语音转文字
+  transcribe: (assetId: number, language = "zh") =>
+    http.post<{ text: string; segments: { start: number; end: number; text: string }[]; srt: string }>(
+      "/tools/transcribe",
+      null,
+      { params: { asset_id: assetId, language } },
+    ).then((r) => r.data),
+  // editing_steps JSON 编辑引擎
+  editingSteps: () =>
+    http.get<{ steps: { name: string; type: string; parameters: Record<string, unknown> }[] }>(
+      "/tools/editing-steps",
+    ).then((r) => r.data),
+  edit: (assetId: number, steps: { name: string; params?: Record<string, unknown> }[]) =>
+    http.post<{ asset_id: number; output_path: string; status: string }>(
+      "/tools/edit",
+      steps,
+      { params: { asset_id: assetId } },
+    ).then((r) => r.data),
+  // 自动发布
+  publishConfig: () =>
+    http.get<{ platforms: string[]; douyin_configured: boolean; bilibili_configured: boolean }>(
+      "/tools/publish/config",
+    ).then((r) => r.data),
+  publish: (payload: {
+    asset_id: number;
+    platform: string;
+    title?: string;
+    description?: string;
+    tags?: string[];
+  }) =>
+    http.post<{
+      success: boolean;
+      platform: string;
+      video_url: string;
+      publish_id: string;
+      error: string;
+    }>("/tools/publish", payload).then((r) => r.data),
 };

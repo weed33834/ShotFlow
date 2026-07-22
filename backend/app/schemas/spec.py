@@ -31,6 +31,10 @@ class AssembleReq(ORMBase):
     # 每条字幕时长（秒），来自 edge-tts WordBoundary 精确时间轴；
     # 缺失时 ffmpeg_service 按视频总时长均分。
     subtitle_durations: list[float] = Field(default_factory=list)
+    # 画面比例（16:9/9:16/1:1），空则用首个资产分辨率
+    video_aspect: str = ""
+    # 是否包含背景音乐（False 时 assemble 跳过 BGM 轨）
+    bgm_enabled: bool = True
 
 
 class GenerateReq(ORMBase):
@@ -44,6 +48,9 @@ class GenerateReq(ORMBase):
     voice_name: str = ""  # TTS 声音（child_cn/female_cn/male_cn/female_en 等）
     subtitle_enabled: bool = True  # 是否硬压字幕
     bgm_enabled: bool = True  # 是否添加背景音乐
+    # 用户上传的本地素材 asset_id 列表（图片/视频/音频），
+    # S5 组装时会追加到生成资产之后参与拼接/混音
+    local_asset_ids: list[int] = Field(default_factory=list)
 
 
 class SpecSaveReq(ORMBase):

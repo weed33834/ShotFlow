@@ -4,10 +4,86 @@
 所有 generate_* 在 SIMULATE_MODE 下返回占位资产（url=simulate://...），保证无 Key 跑通全链路。
 """
 
+import time
+from pathlib import Path
+
 from app.core.config import settings
 from app.models import Asset, GenerationTask, Spec
 from app.services.providers import get_provider
 from app.schemas.spec import AssembleReq, ToolGenerateReq, ToolResult
+
+# 本地素材上传文件大小上限（100MB），防止占用过多磁盘/带宽
+MAX_UPLOAD_BYTES = 100 * 1024 * 1024
+# 扩展名 → asset_type 映射，上传时按后缀自动归类
+_EXT_ASSET_TYPE: dict[str, str] = {
+    ".jpg": "image", ".jpeg": "image", ".png": "image",
+    ".webp": "image", ".bmp": "image", ".gif": "image",
+    ".mp4": "video", ".mov": "video", ".mkv": "video",
+    ".avi": "video", ".webm": "video", ".flv": "video", ".m4v": "video",
+    ".mp3": "audio", ".wav": "audio", ".aac": "audio",
+    ".m4a": "audio", ".ogg": "audio", ".flac": "audio",
+}
+
+
+def _classify_by_extension(filename: str) -> str:
+    """按文件名扩展名归类资产类型（image/video/audio）。
+
+    上传文件没有 provider 提供的 kind 信息，只能用扩展名做兜底分类，
+    与 ffmpeg_service.classify_asset 保持一致的后缀表。
+    """
+    ext = Path(filename).suffix.lower()
+    if ext in _EXT_ASSET_TYPE:
+        return _EXT_ASSET_TYPE[ext]
+    # 未知扩展名默认按视频处理（assemble 时若实际是图片/音频由 classify_asset 再细分）
+    return "video"
+
+
+async def save_upload(file, asset_type_hint: str, db) -> ToolResult:
+    """保存上传的本地素材文件并入库为 Asset。
+
+    file: starlette UploadFile（FastAPI 注入）
+    asset_type_hint: 前端传入的类型提示，空则按扩展名自动判断
+    返回 ToolResult(asset_id, url=本地绝对路径, provider="upload", meta)
+    """
+    # 读取文件内容到内存（已限制 100MB，避免超大文件 OOM）
+    content = await file.read()
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise ValueError(
+            f"上传文件过大：{len(content)} bytes，上限 {MAX_UPLOAD_BYTES} bytes（100MB）"
+        )
+
+    # 时间戳前缀防止同名文件互相覆盖
+    ts = int(time.time() * 1000)
+    safe_name = Path(file.filename or "upload.bin").name
+    upload_dir = Path(settings.STORAGE_DIR) / "uploads"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    dest = upload_dir / f"{ts}_{safe_name}"
+    dest.write_bytes(content)
+
+    asset_type = asset_type_hint or _classify_by_extension(safe_name)
+    asset = Asset(
+        asset_type=asset_type,
+        path=str(dest),
+        filename=safe_name,
+        size_bytes=len(content),
+        project_id=None,
+        tags=["upload", asset_type],
+        meta={
+            "original_filename": safe_name,
+            "size": len(content),
+            "mime": file.content_type or "",
+        },
+    )
+    db.add(asset)
+    db.commit()
+    db.refresh(asset)
+
+    return ToolResult(
+        asset_id=asset.id,
+        url=str(dest),
+        provider="upload",
+        meta=asset.meta,
+    )
 
 
 def _provider_kwargs(provider: str) -> dict:
@@ -18,6 +94,7 @@ def _provider_kwargs(provider: str) -> dict:
         "hunyuan_video": {"secret_id": s.TENCENT_SECRET_ID, "secret_key": s.TENCENT_SECRET_KEY},
         "tencent_tts": {"secret_id": s.TENCENT_SECRET_ID, "secret_key": s.TENCENT_SECRET_KEY},
         "wanx": {"api_key": s.DASHSCOPE_API_KEY},
+        "cosyvoice": {"api_key": s.DASHSCOPE_API_KEY, "base_url": "https://dashscope.aliyuncs.com/api/v1"},
         "kling": {"api_key": s.KLING_API_KEY, "base_url": s.KLING_BASE_URL},
         "jimeng": {"api_key": s.JIMENG_API_KEY, "base_url": s.JIMENG_BASE_URL},
         "runway": {"api_key": s.RUNWAY_API_KEY},
@@ -128,8 +205,9 @@ async def assemble(req: AssembleReq, db) -> ToolResult:
             asset_paths.append(a.path)
 
     # 第一个音频作配音，第二个作 BGM（AssembleReq 不区分，按顺序约定）
+    # bgm_enabled=False 时不用第二个音频做 BGM
     audio_path = audio_candidates[0] if audio_candidates else ""
-    bgm_path = audio_candidates[1] if len(audio_candidates) > 1 else ""
+    bgm_path = audio_candidates[1] if (len(audio_candidates) > 1 and req.bgm_enabled) else ""
 
     if not asset_paths:
         msg = "没有可拼接的视频/图片资产（asset_ids 全为音频）"
@@ -152,6 +230,7 @@ async def assemble(req: AssembleReq, db) -> ToolResult:
             bgm_path=bgm_path,
             output_path=output_path,
             task_id=str(task.id),
+            video_aspect=req.video_aspect,
         )
     except Exception as e:
         task.status = "failed"
