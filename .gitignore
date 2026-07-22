@@ -142,3 +142,4 @@ logs/
 *.dpx
 
 # 注：小型参考图、缩略图、音频示例通过 .gitattributes LFS 管理，此处无需取反规则
+shotflow_test.db
