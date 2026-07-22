@@ -1,4 +1,4 @@
-// 一句话出片 — 自然语言 → 出片（完整参数配置表单）
+// 一句话出片 — 自然语言 → 出片（完整参数配置表单 + 快捷模板 + 批量生成 + 视频预览）
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -11,6 +11,9 @@ import {
   Empty,
   Form,
   Input,
+  InputNumber,
+  Modal,
+  Popconfirm,
   Radio,
   Row,
   Segmented,
@@ -25,12 +28,19 @@ import {
 } from "antd";
 import {
   CaretRightOutlined,
+  CopyOutlined,
+  DownloadOutlined,
   InboxOutlined,
   PictureOutlined,
-  VideoCameraOutlined,
+  RocketOutlined,
   SoundOutlined,
   FontSizeOutlined,
   ThunderboltOutlined,
+  VideoCameraOutlined,
+  BulbOutlined,
+  AppstoreOutlined,
+  ShareAltOutlined,
+  ArrowUpOutlined,
 } from "@ant-design/icons";
 import type { UploadFile } from "antd";
 import {
@@ -41,6 +51,7 @@ import {
   toolsApi,
 } from "@/api";
 import type {
+  BatchGenerateResponse,
   GenerateRequest,
   GenerateResponse,
   OutputType,
@@ -52,6 +63,7 @@ import type {
 
 const { TextArea } = Input;
 
+// ===== 产出类型 =====
 const OUTPUT_OPTIONS: { value: OutputType; label: string; icon: React.ReactNode }[] = [
   { value: "video", label: "视频", icon: <VideoCameraOutlined /> },
   { value: "image_set", label: "图集", icon: <PictureOutlined /> },
@@ -80,9 +92,94 @@ const VOICE_OPTIONS = [
   { value: "clone_cosyvoice", label: "语音克隆（CosyVoice）" },
 ];
 
-// ===== 电影级画质增强：默认/兜底选项（API 不可用时仍可使用）=====
+// ===== 快捷模板：预设示例 prompt，一键填充 =====
+interface QuickTemplate {
+  key: string;
+  title: string;
+  prompt: string;
+  style: string;
+  scene: string;
+  quality: string;
+  icon: string;
+}
 
-// 风格预设兜底（与后端 styles/presets.yaml 同步）
+const QUICK_TEMPLATES: QuickTemplate[] = [
+  {
+    key: "food_cinematic",
+    title: "美食大片",
+    prompt: "一道法式焦糖布丁在暖色灯光下缓缓旋转，焦糖光泽晶莹，蒸汽升腾，微距特写展示细腻质感，30秒美食广告",
+    style: "cinematic",
+    scene: "food",
+    quality: "4k",
+    icon: "🍮",
+  },
+  {
+    key: "city_cyberpunk",
+    title: "赛博都市",
+    prompt: "未来都市夜景航拍，霓虹灯牌林立，飞行汽车穿梭于摩天大楼间，雨后街道倒映着紫色和蓝色的霓虹光芒，赛博朋克风格",
+    style: "cyberpunk",
+    scene: "city",
+    quality: "4k",
+    icon: "🌃",
+  },
+  {
+    key: "nature_ghibli",
+    title: "宫崎骏风光",
+    prompt: "一片翠绿的草地延伸到天际，白云缓缓飘过，远处有古老的石桥和小溪，阳光穿过树叶洒下斑驳光影，吉卜力动画风格",
+    style: "ghibli",
+    scene: "nature",
+    quality: "hd",
+    icon: "🌿",
+  },
+  {
+    key: "product_realistic",
+    title: "产品广告",
+    prompt: "一瓶高级香水在纯白背景下旋转展示，瓶身水晶质感，金色瓶盖反射柔和灯光，水滴滑落，30秒高端产品广告",
+    style: "realistic",
+    scene: "product",
+    quality: "4k",
+    icon: " perfume",
+  },
+  {
+    key: "scifi_epic",
+    title: "科幻史诗",
+    prompt: "深海外星生物发着生物荧光在黑暗的海沟中游动，远处一座巨大的水下城市发出神秘光芒，探测器缓缓靠近，史诗科幻氛围",
+    style: "scifi",
+    scene: "story",
+    quality: "8k",
+    icon: "🚀",
+  },
+  {
+    key: "travel_vlog",
+    title: "旅行Vlog",
+    prompt: "从飞机舷窗俯瞰雪山日出，镜头切换到古镇石板路的晨雾，最后是海边悬崖上的灯塔，黄金时刻光线，旅行vlog风格",
+    style: "documentary",
+    scene: "travel",
+    quality: "hd",
+    icon: "✈️",
+  },
+  {
+    key: "anime_action",
+    title: "动漫动作",
+    prompt: "少年站在樱花树下握紧拳头，风吹起头发和花瓣，眼神坚定望向远方，突然加速冲向前方，动漫风格高速动作场面",
+    style: "anime",
+    scene: "action",
+    quality: "hd",
+    icon: "🌸",
+  },
+  {
+    key: "ink_wash",
+    title: "水墨意境",
+    prompt: "远山如黛，一叶扁舟漂于江上，渔翁独钓，晨雾缭绕山水间，几只白鹭飞过，中国传统水墨画风格，写意意境",
+    style: "ink_wash",
+    scene: "nature",
+    quality: "hd",
+    icon: " mountains",
+  },
+];
+
+// ===== 电影级画质增强：兜底选项 =====
+
 const STYLE_FALLBACK: StylePreset[] = [
   { key: "cinematic", name: "电影感", image_suffix: "", video_suffix: "", negative_prompt: "" },
   { key: "cyberpunk", name: "赛博朋克", image_suffix: "", video_suffix: "", negative_prompt: "" },
@@ -99,7 +196,6 @@ const STYLE_FALLBACK: StylePreset[] = [
   { key: "noir", name: "黑色电影", image_suffix: "", video_suffix: "", negative_prompt: "" },
 ];
 
-// 场景模板兜底（与后端 scenes/templates.yaml 同步）
 const SCENE_FALLBACK: SceneTemplate[] = [
   { key: "product", name: "产品展示", shot_rhythm: "慢节奏，每镜 3-5 秒", shot_sequence: "特写→旋转展示→全景→使用场景", lighting: "影棚柔光 + 边缘光", transition: "fade" },
   { key: "food", name: "美食制作", shot_rhythm: "中节奏，每镜 2-4 秒", shot_sequence: "食材微距→制作过程→摆盘特写→成品全景", lighting: "暖色自然光，侧逆光", transition: "wipeleft" },
@@ -113,7 +209,6 @@ const SCENE_FALLBACK: SceneTemplate[] = [
   { key: "tutorial", name: "教程演示", shot_rhythm: "中节奏，每镜 3-5 秒", shot_sequence: "全景操作→手部特写→屏幕录制→成品展示", lighting: "均匀明亮，无阴影干扰", transition: "fade" },
 ];
 
-// 质量等级兜底（与后端 /tools/prompts/quality-levels 同步）
 const QUALITY_FALLBACK: QualityLevel[] = [
   { key: "standard", label: "标准", desc: "1080p 高清画质" },
   { key: "hd", label: "高清", desc: "1080p+ 高清画质 + 浅景深" },
@@ -121,7 +216,6 @@ const QUALITY_FALLBACK: QualityLevel[] = [
   { key: "8k", label: "8K", desc: "HDR 极清 + Dolby Vision + 光追" },
 ];
 
-// 转场效果选项（与后端 xfade 支持的效果名对齐）
 const TRANSITION_OPTIONS = [
   { value: "fade", label: "淡入淡出（fade）" },
   { value: "wipeleft", label: "左擦除（wipeleft）" },
@@ -132,6 +226,12 @@ const TRANSITION_OPTIONS = [
   { value: "circleclose", label: "圆形收拢（circleclose）" },
   { value: "distance", label: "推拉（distance）" },
   { value: "zoomin", label: "放大（zoomin）" },
+];
+
+const PUBLISH_PLATFORMS = [
+  { value: "douyin", label: "抖音" },
+  { value: "bilibili", label: "哔哩哔哩" },
+  { value: "xiaohongshu", label: "小红书" },
 ];
 
 const COPYRIGHT_HINT = "本平台仅提供生成工具，所用素材/角色/音乐的版权由使用者自行负责";
@@ -165,20 +265,24 @@ export default function Generate() {
   const qc = useQueryClient();
   const [form] = Form.useForm();
   const [outputType, setOutputType] = useState<OutputType>("video");
-  // Upload 组件文件列表状态（驱动 UI + 从 response 提取 asset_id）
   const [uploadFileList, setUploadFileList] = useState<UploadFile[]>([]);
 
-  // ===== 电影级画质增强：状态（默认值与后端一致）=====
-  // 风格预设：空字符串=自动（由 LLM 决定）
+  // 电影级画质增强状态
   const [stylePreset, setStylePreset] = useState<string>("");
-  // 场景模板：空字符串=自动
   const [sceneTemplate, setSceneTemplate] = useState<string>("");
-  // 质量等级：默认 standard
   const [qualityLevel, setQualityLevel] = useState<string>("standard");
-  // 转场效果：默认 fade
   const [transition, setTransition] = useState<string>("fade");
 
-  // 从已上传成功的文件列表中提取 asset_id（保持与文件列表同步）
+  // 批量生成
+  const [batchCount, setBatchCount] = useState<number>(3);
+  const [batchOpen, setBatchOpen] = useState(false);
+  const [batchResult, setBatchResult] = useState<BatchGenerateResponse | null>(null);
+
+  // 发布弹窗
+  const [publishOpen, setPublishOpen] = useState(false);
+  const [publishAssetId, setPublishAssetId] = useState<number | null>(null);
+  const [publishForm] = Form.useForm();
+
   const uploadedAssetIds = uploadFileList
     .filter((f) => f.status === "done" && f.response)
     .map((f) => Number((f.response as ToolResult).asset_id))
@@ -191,8 +295,7 @@ export default function Generate() {
     staleTime: 30000,
   });
 
-  // 电影级提示词：风格预设 / 场景模板 / 质量等级 —— 组件挂载时自动加载（react-query）
-  // staleTime 5 分钟，避免频繁重复请求；失败时使用本地兜底常量，UI 仍可用
+  // 电影级提示词：从 API 加载（失败用本地兜底）
   const stylesQ = useQuery({
     queryKey: ["prompts-styles"],
     queryFn: getStylePresets,
@@ -209,17 +312,15 @@ export default function Generate() {
     staleTime: 300000,
   });
 
-  // 合并“自动”选项 + API/兜底数据
   const styleOptions: StylePreset[] = [
     { key: "", name: "自动", image_suffix: "", video_suffix: "", negative_prompt: "" },
     ...(stylesQ.data?.styles ?? STYLE_FALLBACK),
   ];
   const sceneList: SceneTemplate[] = scenesQ.data?.scenes ?? SCENE_FALLBACK;
   const qualityOptions: QualityLevel[] = qualityQ.data?.levels ?? QUALITY_FALLBACK;
-  // 当前选中的场景模板（用于展示镜头节奏/景别组合等说明）
   const selectedScene = sceneList.find((s) => s.key === sceneTemplate);
 
-  // 本地素材上传：逐个文件调 /tools/upload，成功响应存入 UploadFile.response
+  // 本地素材上传
   const uploadMut = useMutation({
     mutationFn: toolsApi.upload,
     onError: (e: Error) => {
@@ -242,35 +343,146 @@ export default function Generate() {
     },
   });
 
+  // 批量生成
+  const batchMut = useMutation({
+    mutationFn: generateApi.batch,
+    onSuccess: (res: BatchGenerateResponse) => {
+      setBatchResult(res);
+      const successCount = res.results.filter((r) => r.spec_id !== null).length;
+      message.success(`批量生成完成：${successCount}/${res.count} 个成功`);
+      qc.invalidateQueries({ queryKey: ["tools-assets"] });
+    },
+    onError: (e: Error) => {
+      message.error(
+        (e as Error & { friendlyMessage?: string }).friendlyMessage || e.message
+      );
+    },
+  });
+
+  // 视频增强
+  const enhanceMut = useMutation({
+    mutationFn: ({ assetId, scale, fps }: { assetId: number; scale: number; fps: number }) =>
+      toolsApi.enhance(assetId, scale, fps),
+    onSuccess: (res) => {
+      message.success(`视频增强完成：${res.status}`);
+      qc.invalidateQueries({ queryKey: ["tools-assets"] });
+    },
+    onError: (e: Error) => {
+      message.error(
+        (e as Error & { friendlyMessage?: string }).friendlyMessage || e.message
+      );
+    },
+  });
+
+  // 发布
+  const publishMut = useMutation({
+    mutationFn: (payload: { asset_id: number; platform: string; title?: string; description?: string; tags?: string[] }) =>
+      toolsApi.publish(payload),
+    onSuccess: (res) => {
+      if (res.success) {
+        message.success(`发布成功！平台：${res.platform}，ID：${res.publish_id}`);
+      } else {
+        message.error(`发布失败：${res.error}`);
+      }
+      setPublishOpen(false);
+    },
+    onError: (e: Error) => {
+      message.error(
+        (e as Error & { friendlyMessage?: string }).friendlyMessage || e.message
+      );
+    },
+  });
+
   const assetsQ = useQuery({
     queryKey: ["tools-assets"],
     queryFn: toolsApi.assets,
-    enabled: genMut.isSuccess,
+    enabled: genMut.isSuccess || batchMut.isSuccess,
     retry: false,
   });
 
-  const handleGenerate = () => {
+  const buildPayload = (): GenerateRequest => {
     const values = form.getFieldsValue();
-    const nl = (values.nl_prompt || "").trim();
-    if (!nl) {
-      message.warning("请先输入一句话描述");
-      return;
-    }
-    const payload: GenerateRequest = {
-      nl_prompt: nl,
+    return {
+      nl_prompt: (values.nl_prompt || "").trim(),
       output_type: outputType,
       video_aspect: values.video_aspect || "",
       voice_name: values.voice_name || "",
       subtitle_enabled: values.subtitle_enabled ?? true,
       bgm_enabled: values.bgm_enabled ?? true,
       local_asset_ids: uploadedAssetIds.length > 0 ? uploadedAssetIds : undefined,
-      // 电影级画质增强参数
       style_preset: stylePreset || "",
       scene_template: sceneTemplate || "",
       quality_level: qualityLevel || "standard",
       transition: transition || "fade",
     };
+  };
+
+  const handleGenerate = () => {
+    const payload = buildPayload();
+    if (!payload.nl_prompt) {
+      message.warning("请先输入一句话描述");
+      return;
+    }
     genMut.mutate(payload);
+  };
+
+  const handleBatchGenerate = () => {
+    const payload = buildPayload();
+    if (!payload.nl_prompt) {
+      message.warning("请先输入一句话描述");
+      return;
+    }
+    setBatchResult(null);
+    batchMut.mutate({ ...payload, count: batchCount });
+  };
+
+  // 一键应用快捷模板
+  const applyTemplate = (tpl: QuickTemplate) => {
+    form.setFieldValue("nl_prompt", tpl.prompt);
+    setStylePreset(tpl.style);
+    setSceneTemplate(tpl.scene);
+    setQualityLevel(tpl.quality);
+    setOutputType("video");
+    message.success(`已加载模板：${tpl.title}`);
+  };
+
+  // 复制提示词到剪贴板
+  const handleCopyPrompt = () => {
+    const text = form.getFieldValue("nl_prompt") || "";
+    if (text) {
+      navigator.clipboard.writeText(text);
+      message.success("已复制到剪贴板");
+    }
+  };
+
+  // 下载资产
+  const handleDownload = (url: string, filename: string) => {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename || "download";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  // 打开发布弹窗
+  const openPublish = (assetId: number) => {
+    setPublishAssetId(assetId);
+    setPublishOpen(true);
+  };
+
+  // 提交发布
+  const handlePublish = () => {
+    publishForm.validateFields().then((values) => {
+      if (publishAssetId === null) return;
+      publishMut.mutate({
+        asset_id: publishAssetId,
+        platform: values.platform || "douyin",
+        title: values.title || "",
+        description: values.description || "",
+        tags: values.tags || [],
+      });
+    });
   };
 
   const simMode = configQ.data?.simulate_mode ?? false;
@@ -309,6 +521,60 @@ export default function Generate() {
         </Space>
       </Card>
 
+      {/* 快捷模板画廊 */}
+      <Card
+        size="small"
+        style={{ marginBottom: 16 }}
+        title={
+          <Space>
+            <BulbOutlined style={{ color: "#faad14" }} />
+            快捷模板
+          </Space>
+        }
+        extra={
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            点击一键填充提示词和风格参数
+          </Typography.Text>
+        }
+      >
+        <Row gutter={[8, 8]}>
+          {QUICK_TEMPLATES.map((tpl) => (
+            <Col key={tpl.key} xs={12} sm={8} md={6} lg={3}>
+              <div
+                onClick={() => applyTemplate(tpl)}
+                style={{
+                  border: "1.5px solid #e4e7eb",
+                  borderRadius: 8,
+                  padding: "10px 12px",
+                  cursor: "pointer",
+                  background: "#fafafa",
+                  height: "100%",
+                  transition: "all 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = "#1668dc";
+                  e.currentTarget.style.background = "#f0f5ff";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = "#e4e7eb";
+                  e.currentTarget.style.background = "#fafafa";
+                }}
+              >
+                <div style={{ fontSize: 24, marginBottom: 4 }}>{tpl.icon}</div>
+                <Typography.Text strong style={{ fontSize: 13 }}>
+                  {tpl.title}
+                </Typography.Text>
+                <div style={{ marginTop: 2 }}>
+                  <Space size={4} wrap>
+                    <Tag style={{ fontSize: 10, padding: "0 4px" }}>{tpl.quality.toUpperCase()}</Tag>
+                  </Space>
+                </div>
+              </div>
+            </Col>
+          ))}
+        </Row>
+      </Card>
+
       {/* 产出类型选择 */}
       <Card size="small" style={{ marginBottom: 16 }}>
         <Segmented
@@ -337,7 +603,14 @@ export default function Generate() {
         }}>
           <Form.Item
             name="nl_prompt"
-            label="描述你想要的画面"
+            label={
+              <Space>
+                <span>描述你想要的画面</span>
+                <Tooltip title="复制提示词">
+                  <Button size="small" type="text" icon={<CopyOutlined />} onClick={handleCopyPrompt} />
+                </Tooltip>
+              </Space>
+            }
             rules={[{ required: true, message: "请输入描述" }]}
           >
             <TextArea
@@ -396,7 +669,7 @@ export default function Generate() {
             }]}
           />
 
-          <Space>
+          <Space wrap>
             <Button
               type="primary"
               size="large"
@@ -406,6 +679,14 @@ export default function Generate() {
             >
               开始生成
             </Button>
+            <Button
+              size="large"
+              loading={batchMut.isPending}
+              onClick={() => setBatchOpen(true)}
+              icon={<AppstoreOutlined />}
+            >
+              批量生成
+            </Button>
             <Typography.Text type="warning" style={{ fontSize: 12 }}>
               {COPYRIGHT_HINT}
             </Typography.Text>
@@ -413,7 +694,7 @@ export default function Generate() {
         </Form>
       </Card>
 
-      {/* 电影级画质增强：风格预设 / 场景模板 / 质量等级 / 转场效果 */}
+      {/* 电影级画质增强 */}
       <Card
         size="small"
         style={{ marginBottom: 16 }}
@@ -424,7 +705,7 @@ export default function Generate() {
           </Space>
         }
       >
-        {/* 风格预设：可选择的卡片网格 */}
+        {/* 风格预设 */}
         <div style={{ marginBottom: 20 }}>
           <Space style={{ marginBottom: 8 }}>
             <Typography.Text strong>风格预设</Typography.Text>
@@ -559,7 +840,7 @@ export default function Generate() {
         </div>
       </Card>
 
-      {/* 本地素材导入：上传图片/视频/音频，S5 组装时追加到生成资产之后 */}
+      {/* 本地素材导入 */}
       <Card
         size="small"
         style={{ marginBottom: 16 }}
@@ -587,13 +868,10 @@ export default function Generate() {
         <Upload.Dragger
           multiple
           fileList={uploadFileList}
-          // 接受图片/视频/音频，与后端 _classify_by_extension 后缀表一致
           accept="image/*,video/*,audio/*,.flv,.mkv,.m4v,.m4a,.ogg,.flac,.bmp,.webp"
-          // 禁用 antd 自动上传，手动调 toolsApi.upload，响应存入 UploadFile.response
           customRequest={({ file, onSuccess, onError }) => {
             uploadMut.mutate(file as File, {
               onSuccess: (res) => {
-                // antd 拿到 onSuccess 后会标记 file.status=done 并存 response
                 onSuccess?.(res, file);
                 message.success(`上传成功：${(file as File).name}（asset_id=${res.asset_id}）`);
                 qc.invalidateQueries({ queryKey: ["tools-assets"] });
@@ -604,11 +882,9 @@ export default function Generate() {
             });
           }}
           onChange={({ fileList }) => {
-            // 同步文件列表状态，asset_id 从 done 状态文件的 response 派生
             setUploadFileList(fileList);
           }}
           onRemove={(file) => {
-            // 仅从文件列表移除，uploadedAssetIds 会自动重新派生
             setUploadFileList((prev) => prev.filter((f) => f.uid !== file.uid));
             message.info(`已从列表移除：${file.name}`);
             return true;
@@ -660,9 +936,17 @@ export default function Generate() {
         </Card>
       )}
 
-      {/* 生成资产展示 */}
-      {genMut.isSuccess && (
-        <Card size="small" title="生成的资产">
+      {/* 生成资产展示 — 带视频预览、下载、增强、发布 */}
+      {(genMut.isSuccess || batchMut.isSuccess) && (
+        <Card
+          size="small"
+          title={
+            <Space>
+              <VideoCameraOutlined />
+              生成的资产
+            </Space>
+          }
+        >
           {assetsQ.isLoading ? (
             <div style={{ textAlign: "center", padding: 40 }}>
               <Spin tip="加载资产..." />
@@ -685,6 +969,7 @@ export default function Generate() {
                 const isImg = isImageAsset(a);
                 const isVid = isVideoAsset(a);
                 const isAud = isAudioAsset(a);
+                const aid = Number(a.asset_id);
                 return (
                   <Col key={a.asset_id} xs={24} sm={12} md={8} lg={6}>
                     <Card
@@ -711,9 +996,10 @@ export default function Generate() {
                             controls
                             style={{
                               width: "100%",
-                              height: 160,
-                              objectFit: "cover",
+                              height: 200,
+                              objectFit: "contain",
                               borderRadius: "6px 6px 0 0",
+                              background: "#000",
                             }}
                           />
                         ) : isAud ? (
@@ -728,6 +1014,29 @@ export default function Generate() {
                           </div>
                         )
                       }
+                      actions={[
+                        <Tooltip key="download" title="下载">
+                          <DownloadOutlined onClick={() => handleDownload(a.url, `${a.provider}_${a.asset_id}`)} />
+                        </Tooltip>,
+                        ...(isVid ? [
+                          <Tooltip key="enhance" title="AI 超分 + 补帧">
+                            <Popconfirm
+                              title="AI 视频增强"
+                              description="将使用 Real-ESRGAN 超分辨率 + RIFE 帧插值，可能需要较长时间。继续？"
+                              onConfirm={() => enhanceMut.mutate({ assetId: aid, scale: 2, fps: 60 })}
+                              okText="开始增强"
+                              cancelText="取消"
+                            >
+                              <ArrowUpOutlined />
+                            </Popconfirm>
+                          </Tooltip>,
+                        ] : []),
+                        ...(isVid ? [
+                          <Tooltip key="publish" title="发布到社交平台">
+                            <ShareAltOutlined onClick={() => openPublish(aid)} />
+                          </Tooltip>,
+                        ] : []),
+                      ]}
                     >
                       <Card.Meta
                         title={
@@ -741,6 +1050,7 @@ export default function Generate() {
                         description={
                           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                             ID: {a.asset_id}
+                            {enhanceMut.isPending && enhanceMut.variables?.assetId === aid && " · 增强中..."}
                           </Typography.Text>
                         }
                       />
@@ -752,6 +1062,105 @@ export default function Generate() {
           )}
         </Card>
       )}
+
+      {/* 批量生成弹窗 */}
+      <Modal
+        title={
+          <Space>
+            <AppstoreOutlined />
+            批量生成
+          </Space>
+        }
+        open={batchOpen}
+        onCancel={() => { setBatchOpen(false); setBatchResult(null); }}
+        footer={[
+          <Button key="cancel" onClick={() => { setBatchOpen(false); setBatchResult(null); }}>关闭</Button>,
+          <Button
+            key="submit"
+            type="primary"
+            loading={batchMut.isPending}
+            onClick={handleBatchGenerate}
+            icon={<RocketOutlined />}
+          >
+            开始批量生成
+          </Button>,
+        ]}
+      >
+        <Typography.Paragraph type="secondary">
+          同一提示词生成多个变体，每个变体使用不同的 LLM 随机性，适合"一个主题出多个版本选最优"。
+        </Typography.Paragraph>
+        <Form layout="vertical">
+          <Form.Item label="生成数量">
+            <InputNumber
+              min={1}
+              max={10}
+              value={batchCount}
+              onChange={(v) => setBatchCount(v || 3)}
+              style={{ width: "100%" }}
+            />
+          </Form.Item>
+        </Form>
+
+        {/* 批量结果 */}
+        {batchResult && (
+          <div style={{ marginTop: 16 }}>
+            <Alert
+              type={batchResult.results.every((r) => r.spec_id !== null) ? "success" : "warning"}
+              showIcon
+              message={`${batchResult.message}（成功 ${batchResult.results.filter((r) => r.spec_id !== null).length}/${batchResult.count}）`}
+            />
+            <div style={{ marginTop: 8 }}>
+              {batchResult.results.map((r, i) => (
+                <div key={i} style={{ padding: "4px 0" }}>
+                  <Space>
+                    <Tag color={r.spec_id !== null ? "green" : "red"}>
+                      变体 {i + 1}
+                    </Tag>
+                    {r.spec_id !== null ? (
+                      <span>spec_id: <b>{r.spec_id}</b></span>
+                    ) : (
+                      <Typography.Text type="danger">失败：{r.error}</Typography.Text>
+                    )}
+                  </Space>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* 发布弹窗 */}
+      <Modal
+        title={
+          <Space>
+            <ShareAltOutlined />
+            发布到社交平台
+          </Space>
+        }
+        open={publishOpen}
+        onCancel={() => setPublishOpen(false)}
+        onOk={handlePublish}
+        confirmLoading={publishMut.isPending}
+        okText="发布"
+      >
+        <Form form={publishForm} layout="vertical" initialValues={{ platform: "douyin" }}>
+          <Form.Item name="platform" label="发布平台" rules={[{ required: true }]}>
+            <Select options={PUBLISH_PLATFORMS} />
+          </Form.Item>
+          <Form.Item name="title" label="标题">
+            <Input placeholder="输入视频标题" />
+          </Form.Item>
+          <Form.Item name="description" label="描述">
+            <Input.TextArea rows={3} placeholder="输入视频描述" />
+          </Form.Item>
+          <Form.Item name="tags" label="标签">
+            <Select mode="tags" placeholder="输入标签后回车" />
+          </Form.Item>
+        </Form>
+        <Typography.Text type="warning" style={{ fontSize: 12 }}>
+          需在 .env 中配置对应平台的 access_token / cookie 后才能真实发布。
+        </Typography.Text>
+      </Modal>
     </div>
   );
 }

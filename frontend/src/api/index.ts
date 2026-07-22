@@ -1,6 +1,7 @@
 // 各资源 API — 基于 crud 工厂与手写特殊端点
 import { crud, http } from "./client";
 import type {
+  BatchGenerateResponse,
   CaseStudy,
   CaseStudyCreate,
   CaseStudyUpdate,
@@ -107,7 +108,7 @@ export const generateApi = {
     http.post<GenerateResponse>("/generate", payload).then((r) => r.data),
   // 批量生成：同一 prompt 生成 count 个变体
   batch: (payload: GenerateRequest & { count: number }) =>
-    http.post<GenerateResponse & { results: { spec_id: number | null; error: string | null }[] }>(
+    http.post<BatchGenerateResponse>(
       "/generate/batch",
       payload,
     ).then((r) => r.data),
@@ -165,6 +166,12 @@ export const toolsApi = {
       publish_id: string;
       error: string;
     }>("/tools/publish", payload).then((r) => r.data),
+  // 视频增强（Real-ESRGAN 超分 + RIFE 帧插值）
+  enhance: (assetId: number, scale = 2, fpsTarget = 60) =>
+    http.post<{ asset_id: number; output_path: string; status: string }>(
+      "/tools/enhance",
+      { asset_id: assetId, scale, fps_target: fpsTarget },
+    ).then((r) => r.data),
   // 电影级提示词预设（与下方独立函数同源，保持 toolsApi 命名空间完整）
   stylePresets: () => getStylePresets(),
   sceneTemplates: () => getSceneTemplates(),

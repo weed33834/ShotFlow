@@ -321,6 +321,13 @@ export interface GenerateResponse {
   message: string;
 }
 
+export interface BatchGenerateResponse {
+  status: "simulated" | "generated";
+  count: number;
+  results: { spec_id: number | null; error: string | null }[];
+  message: string;
+}
+
 // 工具资产结果
 export interface ToolResult {
   asset_id: string;
