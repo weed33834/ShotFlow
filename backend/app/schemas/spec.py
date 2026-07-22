@@ -39,6 +39,11 @@ class GenerateReq(ORMBase):
     nl_prompt: str
     output_type: str = "video"  # video/image_set/micro_movie/comic/vn
     project_id: Optional[int] = None
+    # 视频参数（可选，前端表单传入，缺省走编排器默认值）
+    video_aspect: str = ""  # 16:9 / 9:16 / 1:1，空则由编排器决定
+    voice_name: str = ""  # TTS 声音（child_cn/female_cn/male_cn/female_en 等）
+    subtitle_enabled: bool = True  # 是否硬压字幕
+    bgm_enabled: bool = True  # 是否添加背景音乐
 
 
 class SpecSaveReq(ORMBase):

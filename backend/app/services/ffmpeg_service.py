@@ -24,6 +24,8 @@ import tempfile
 from pathlib import Path
 
 from app.core.config import settings
+from app.services.audio_normalizer import normalize_audio_for_mixing
+from app.services.ffmpeg_hwaccel import get_optimal_ffmpeg_encoder
 from app.services.subtitle_service import generate_srt_from_durations
 
 logger = logging.getLogger(__name__)
@@ -91,6 +93,11 @@ def _run_ffmpeg(args: list[str], desc: str = "ffmpeg") -> None:
             "ffmpeg 不可用：未配置 FFMPEG_PATH 且 PATH 中未找到 ffmpeg。"
             "请安装 ffmpeg 或在 .env 中设置 FFMPEG_PATH。"
         )
+    # 在可用时将 libx264 替换为硬件加速编码器（如 h264_nvenc）。
+    # 仅替换编码器名称、不追加 -hwaccel 解码参数，避免破坏 filter_complex 滤镜链。
+    optimal_encoder = get_optimal_ffmpeg_encoder()
+    if optimal_encoder != "libx264":
+        args = [optimal_encoder if a == "libx264" else a for a in args]
     cmd = [binary, "-hide_banner"] + args
     logger.info("[ffmpeg] %s", desc)
     try:
@@ -386,74 +393,92 @@ def _run_final(
     - 有字幕时必须重编码视频（滤镜要求）
     - 仅混音无字幕时可 -c:v copy 视频轨，省一次编码
     - 无音频时输出静音视频（-an）
+    - 混音前对配音音频做 LUFS 响度标准化，保证不同 TTS 产出音量一致
     """
-    args: list[str] = ["-i", str(concat_path)]
-
-    # 追加音频输入，记录输入索引
-    next_idx = 1
-    audio_idx = None
-    bgm_idx = None
+    # 在混音前对配音音频进行响度标准化
+    normalized_path: str | None = None
     if audio_input:
-        audio_idx = next_idx
-        next_idx += 1
-        args += ["-i", str(audio_input)]
-    if bgm_input:
-        bgm_idx = next_idx
-        next_idx += 1
-        args += ["-i", str(bgm_input)]
+        normalized_path = normalize_audio_for_mixing(
+            str(audio_input), str(output.parent), target_lufs=-20.0,
+        )
+        if normalized_path:
+            audio_input = Path(normalized_path)
 
-    need_amix = audio_idx is not None and bgm_idx is not None
-    has_subtitle = bool(subtitle_filter)
-    use_filter = has_subtitle or need_amix
+    try:
+        args: list[str] = ["-i", str(concat_path)]
 
-    if use_filter:
-        parts: list[str] = []
-        # 视频轨：字幕滤镜或直通
-        if has_subtitle:
-            parts.append(subtitle_filter)
-            vmap = "[vsub]"
+        # 追加音频输入，记录输入索引
+        next_idx = 1
+        audio_idx = None
+        bgm_idx = None
+        if audio_input:
+            audio_idx = next_idx
+            next_idx += 1
+            args += ["-i", str(audio_input)]
+        if bgm_input:
+            bgm_idx = next_idx
+            next_idx += 1
+            args += ["-i", str(bgm_input)]
+
+        need_amix = audio_idx is not None and bgm_idx is not None
+        has_subtitle = bool(subtitle_filter)
+        use_filter = has_subtitle or need_amix
+
+        if use_filter:
+            parts: list[str] = []
+            # 视频轨：字幕滤镜或直通
+            if has_subtitle:
+                parts.append(subtitle_filter)
+                vmap = "[vsub]"
+            else:
+                vmap = "0:v"
+            # 音频轨：amix 混音或直通单轨
+            amap = None
+            if need_amix:
+                # normalize=0 防止 amix 把多轨音量按 1/n 稀释
+                parts.append(
+                    f"[{audio_idx}:a][{bgm_idx}:a]amix=inputs=2:duration=first:normalize=0[aout]"
+                )
+                amap = "[aout]"
+            elif audio_idx is not None:
+                # 直接引用输入流不能用方括号，方括号表示 filter graph 输出标签
+                amap = f"{audio_idx}:a"
+            elif bgm_idx is not None:
+                amap = f"{bgm_idx}:a"
+
+            args += ["-filter_complex", ";".join(parts)]
+            args += ["-map", vmap]
+            if amap:
+                args += ["-map", amap]
+            # 有字幕必须重编码；仅混音时视频直通拷贝
+            if has_subtitle:
+                args += ["-c:v", "libx264", "-pix_fmt", "yuv420p"]
+            else:
+                args += ["-c:v", "copy"]
         else:
-            vmap = "0:v"
-        # 音频轨：amix 混音或直通单轨
-        amap = None
-        if need_amix:
-            # normalize=0 防止 amix 把多轨音量按 1/n 稀释
-            parts.append(
-                f"[{audio_idx}:a][{bgm_idx}:a]amix=inputs=2:duration=first:normalize=0[aout]"
-            )
-            amap = "[aout]"
-        elif audio_idx is not None:
-            # 直接引用输入流不能用方括号，方括号表示 filter graph 输出标签
-            amap = f"{audio_idx}:a"
-        elif bgm_idx is not None:
-            amap = f"{bgm_idx}:a"
-
-        args += ["-filter_complex", ";".join(parts)]
-        args += ["-map", vmap]
-        if amap:
-            args += ["-map", amap]
-        # 有字幕必须重编码；仅混音时视频直通拷贝
-        if has_subtitle:
-            args += ["-c:v", "libx264", "-pix_fmt", "yuv420p"]
-        else:
+            # 无滤镜：直接映射，视频拷贝
+            args += ["-map", "0:v"]
+            if audio_idx is not None:
+                args += ["-map", f"{audio_idx}:a"]
+            elif bgm_idx is not None:
+                args += ["-map", f"{bgm_idx}:a"]
             args += ["-c:v", "copy"]
-    else:
-        # 无滤镜：直接映射，视频拷贝
-        args += ["-map", "0:v"]
-        if audio_idx is not None:
-            args += ["-map", f"{audio_idx}:a"]
-        elif bgm_idx is not None:
-            args += ["-map", f"{bgm_idx}:a"]
-        args += ["-c:v", "copy"]
 
-    # 音频编码
-    if audio_idx is not None or bgm_idx is not None:
-        args += ["-c:a", "aac", "-b:a", "192k"]
-    else:
-        args += ["-an"]
+        # 音频编码
+        if audio_idx is not None or bgm_idx is not None:
+            args += ["-c:a", "aac", "-b:a", "192k"]
+        else:
+            args += ["-an"]
 
-    args += ["-movflags", "+faststart", "-y", str(output)]
-    _run_ffmpeg(args, desc="最终合成（混音+字幕）")
+        args += ["-movflags", "+faststart", "-y", str(output)]
+        _run_ffmpeg(args, desc="最终合成（混音+字幕）")
+    finally:
+        # 清理响度标准化产生的临时文件
+        if normalized_path:
+            try:
+                Path(normalized_path).unlink(missing_ok=True)
+            except Exception:
+                pass
 
 
 def _final_pass(

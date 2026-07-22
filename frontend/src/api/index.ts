@@ -15,6 +15,7 @@ import type {
   Project,
   ProjectCreate,
   ProjectUpdate,
+  ProvidersConfig,
   QaReport,
   QaReportCreate,
   QueueStats,
@@ -103,4 +104,6 @@ export const generateApi = {
 export const toolsApi = {
   assets: () =>
     http.get<ToolResult[]>("/tools/assets").then((r) => r.data),
+  providers: () =>
+    http.get<ProvidersConfig>("/tools/providers").then((r) => r.data),
 };

@@ -21,24 +21,125 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# ShotFlow voice 名称 → edge-tts voice ID 映射
-_VOICE_MAP = {
-    "child_cn": "zh-CN-XiaoxiaoNeural",      # 童声/活泼女声
-    "female_cn": "zh-CN-XiaoxiaoNeural",      # 女声
-    "male_cn": "zh-CN-YunxiNeural",           # 男声
-    "female_cn_yun": "zh-CN-XiaoyiNeural",    # 女声（晓伊）
-    "male_cn_yun": "zh-CN-YunyangNeural",     # 男声（云扬）
-    "female_cn_lia": "zh-CN-liaoning-XiaobeiNeural",  # 东北女声
-    "male_cn_sha": "zh-CN-shaanxi-XiaoniNeural",      # 陕西男声
+# ShortGPT EDGE_TTS_VOICENAME_MAPPING 移植：ISO 语言代码 → {gender: edge-tts voice ID}
+# 保留 ShortGPT 选用的区域变体（如 en→en-AU 而非 en-US），避免随意改动已验证的音色。
+_EDGE_TTS_LANG_VOICES: dict[str, dict[str, str]] = {
+    "en": {"male": "en-AU-WilliamNeural", "female": "en-AU-NatashaNeural"},
+    "es": {"male": "es-AR-TomasNeural", "female": "es-AR-ElenaNeural"},
+    "fr": {"male": "fr-CA-AntoineNeural", "female": "fr-CA-SylvieNeural"},
+    "ar": {"male": "ar-AE-HamdanNeural", "female": "ar-AE-FatimaNeural"},
+    "de": {"male": "de-DE-ConradNeural", "female": "de-DE-KatjaNeural"},
+    "pl": {"male": "pl-PL-MarekNeural", "female": "pl-PL-ZofiaNeural"},
+    "it": {"male": "it-IT-DiegoNeural", "female": "it-IT-ElsaNeural"},
+    "pt": {"male": "pt-BR-AntonioNeural", "female": "pt-BR-FranciscaNeural"},
+    "af": {"male": "af-ZA-WillemNeural", "female": "af-ZA-AdriNeural"},
+    "am": {"male": "am-ET-AmehaNeural", "female": "am-ET-MekdesNeural"},
+    "az": {"male": "az-AZ-BabekNeural", "female": "az-AZ-BanuNeural"},
+    "bg": {"male": "bg-BG-BorislavNeural", "female": "bg-BG-KalinaNeural"},
+    "bn": {"male": "bn-BD-PradeepNeural", "female": "bn-BD-NabanitaNeural"},
+    "bs": {"male": "bs-BA-GoranNeural", "female": "bs-BA-VesnaNeural"},
+    "ca": {"male": "ca-ES-EnricNeural", "female": "ca-ES-JoanaNeural"},
+    "cs": {"male": "cs-CZ-AntoninNeural", "female": "cs-CZ-VlastaNeural"},
+    "cy": {"male": "cy-GB-AledNeural", "female": "cy-GB-NiaNeural"},
+    "da": {"male": "da-DK-JeppeNeural", "female": "da-DK-ChristelNeural"},
+    "el": {"male": "el-GR-NestorasNeural", "female": "el-GR-AthinaNeural"},
+    "et": {"male": "et-EE-KertNeural", "female": "et-EE-AnuNeural"},
+    "fa": {"male": "fa-IR-FaridNeural", "female": "fa-IR-DilaraNeural"},
+    "fi": {"male": "fi-FI-HarriNeural", "female": "fi-FI-NooraNeural"},
+    "fil": {"male": "fil-PH-AngeloNeural", "female": "fil-PH-BlessicaNeural"},
+    "gl": {"male": "gl-ES-RoiNeural", "female": "gl-ES-SabelaNeural"},
+    "gu": {"male": "gu-IN-NiranjanNeural", "female": "gu-IN-DhwaniNeural"},
+    "he": {"male": "he-IL-AvriNeural", "female": "he-IL-HilaNeural"},
+    "hi": {"male": "hi-IN-MadhurNeural", "female": "hi-IN-SwaraNeural"},
+    "hr": {"male": "hr-HR-SreckoNeural", "female": "hr-HR-GabrijelaNeural"},
+    "hu": {"male": "hu-HU-TamasNeural", "female": "hu-HU-NoemiNeural"},
+    "id": {"male": "id-ID-ArdiNeural", "female": "id-ID-GadisNeural"},
+    "is": {"male": "is-IS-GunnarNeural", "female": "is-IS-GudrunNeural"},
+    "ja": {"male": "ja-JP-KeitaNeural", "female": "ja-JP-NanamiNeural"},
+    "jv": {"male": "jv-ID-DimasNeural", "female": "jv-ID-SitiNeural"},
+    "ka": {"male": "ka-GE-GiorgiNeural", "female": "ka-GE-EkaNeural"},
+    "kk": {"male": "kk-KZ-DauletNeural", "female": "kk-KZ-AigulNeural"},
+    "km": {"male": "km-KH-PisethNeural", "female": "km-KH-SreymomNeural"},
+    "kn": {"male": "kn-IN-GaganNeural", "female": "kn-IN-SapnaNeural"},
+    "ko": {"male": "ko-KR-InJoonNeural", "female": "ko-KR-SunHiNeural"},
+    "lo": {"male": "lo-LA-KeomanyNeural", "female": "lo-LA-ChanthavongNeural"},
+    "lt": {"male": "lt-LT-LeonasNeural", "female": "lt-LT-OnaNeural"},
+    "lv": {"male": "lv-LV-NilsNeural", "female": "lv-LV-EveritaNeural"},
+    "mk": {"male": "mk-MK-AleksandarNeural", "female": "mk-MK-MarijaNeural"},
+    "ml": {"male": "ml-IN-MidhunNeural", "female": "ml-IN-MidhunNeural"},
+    "mn": {"male": "mn-MN-YesuiNeural", "female": "mn-MN-BataaNeural"},
+    "mr": {"male": "mr-IN-ManoharNeural", "female": "mr-IN-AarohiNeural"},
+    "ms": {"male": "ms-MY-OsmanNeural", "female": "ms-MY-YasminNeural"},
+    "mt": {"male": "mt-MT-JosephNeural", "female": "mt-MT-GraceNeural"},
+    "my": {"male": "my-MM-ThihaNeural", "female": "my-MM-NilarNeural"},
+    "no": {"male": "nb-NO-FinnNeural", "female": "nb-NO-PernilleNeural"},
+    "ne": {"male": "ne-NP-SagarNeural", "female": "ne-NP-HemkalaNeural"},
+    "nl": {"male": "nl-NL-MaartenNeural", "female": "nl-NL-FennaNeural"},
+    "nb": {"male": "nb-NO-FinnNeural", "female": "nb-NO-PernilleNeural"},
+    "nn": {"male": "nb-NO-FinnNeural", "female": "nb-NO-PernilleNeural"},
+    "ps": {"male": "ps-AF-LatifaNeural", "female": "ps-AF-GulNawazNeural"},
+    "ro": {"male": "ro-RO-EmilNeural", "female": "ro-RO-AlinaNeural"},
+    "ru": {"male": "ru-RU-DmitryNeural", "female": "ru-RU-SvetlanaNeural"},
+    "si": {"male": "si-LK-SameeraNeural", "female": "si-LK-ThiliniNeural"},
+    "sk": {"male": "sk-SK-LukasNeural", "female": "sk-SK-ViktoriaNeural"},
+    "sl": {"male": "sl-SI-RokNeural", "female": "sl-SI-PetraNeural"},
+    "so": {"male": "so-SO-MuuseNeural", "female": "so-SO-UbaxNeural"},
+    "sq": {"male": "sq-AL-IlirNeural", "female": "sq-AL-AnilaNeural"},
+    "sr": {"male": "sr-RS-NicholasNeural", "female": "sr-RS-SophieNeural"},
+    "su": {"male": "su-ID-JajangNeural", "female": "su-ID-TutiNeural"},
+    "sv": {"male": "sv-SE-MattiasNeural", "female": "sv-SE-SofieNeural"},
+    "sw": {"male": "sw-TZ-DaudiNeural", "female": "sw-TZ-DaudiNeural"},
+    "ta": {"male": "ta-IN-ValluvarNeural", "female": "ta-IN-PallaviNeural"},
+    "te": {"male": "te-IN-MohanNeural", "female": "te-IN-ShrutiNeural"},
+    "th": {"male": "th-TH-NiwatNeural", "female": "th-TH-PremwadeeNeural"},
+    "tr": {"male": "tr-TR-AhmetNeural", "female": "tr-TR-EmelNeural"},
+    "uk": {"male": "uk-UA-OstapNeural", "female": "uk-UA-PolinaNeural"},
+    "ur": {"male": "ur-PK-AsadNeural", "female": "ur-PK-UzmaNeural"},
+    "uz": {"male": "uz-UZ-SardorNeural", "female": "uz-UZ-MadinaNeural"},
+    "vi": {"male": "vi-VN-NamMinhNeural", "female": "vi-VN-HoaiMyNeural"},
+    "zh": {"male": "zh-CN-YunxiNeural", "female": "zh-CN-XiaoxiaoNeural"},
+    "zu": {"male": "zu-ZA-ThembaNeural", "female": "zu-ZA-ThandoNeural"},
 }
+
+# 从 _EDGE_TTS_LANG_VOICES 生成 {gender}_{lang} → voice ID 扁平映射
+_VOICE_MAP: dict[str, str] = {}
+for _lang, _genders in _EDGE_TTS_LANG_VOICES.items():
+    for _gender, _voice in _genders.items():
+        _VOICE_MAP[f"{_gender}_{_lang}"] = _voice
+
+# ShotFlow 中文特有映射：比通用 female_zh/male_zh 更细分（方言/角色变体）
+# 放在生成映射之后以覆盖同名 key，保留历史调用方使用的别名
+_VOICE_MAP.update({
+    "child_cn": "zh-CN-XiaoxiaoNeural",
+    "female_cn": "zh-CN-XiaoxiaoNeural",
+    "male_cn": "zh-CN-YunxiNeural",
+    "female_cn_yun": "zh-CN-XiaoyiNeural",
+    "male_cn_yun": "zh-CN-YunyangNeural",
+    "female_cn_lia": "zh-CN-liaoning-XiaobeiNeural",
+    "male_cn_sha": "zh-CN-shaanxi-XiaoniNeural",
+})
 
 # WordBoundary 的 offset/duration 以 100 纳秒为单位
 _HNS_PER_SECOND = 10_000_000
 
+# 未知 voice 的兜底值
+_DEFAULT_VOICE = "zh-CN-XiaoxiaoNeural"
+
 
 def _resolve_voice(voice_name: str) -> str:
-    """把 ShotFlow voice 名称解析为 edge-tts voice ID，未知名称兜底女声。"""
-    return _VOICE_MAP.get(voice_name, "zh-CN-XiaoxiaoNeural")
+    """把 ShotFlow voice 名称解析为 edge-tts voice ID，未知名称兜底女声。
+
+    支持三种输入：
+    1. ShotFlow 别名（child_cn / female_cn / male_cn 等）
+    2. {gender}_{lang} 命名规则（female_en / male_ja / female_ko 等）
+    3. 直接传入的 edge-tts 原生 voice ID（含 "Neural" 后缀）
+    """
+    if not voice_name:
+        return _DEFAULT_VOICE
+    # 直接传入 edge-tts 原生 voice ID 时原样返回
+    if "Neural" in voice_name:
+        return voice_name
+    return _VOICE_MAP.get(voice_name, _DEFAULT_VOICE)
 
 
 def _resolve_proxy() -> str | None:

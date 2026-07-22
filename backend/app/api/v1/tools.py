@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.core.config import settings
 from app.models import Spec
 from app.schemas.spec import (
     AssembleReq,
@@ -17,6 +18,7 @@ from app.schemas.spec import (
     ToolResult,
 )
 from app.services import tools_service as svc
+from app.services.providers import list_providers
 
 router = APIRouter(tags=["tools"])
 
@@ -65,3 +67,18 @@ def list_assets(db: Session = Depends(get_db)) -> list[ToolResult]:
         ToolResult(asset_id=a.id, url=a.path, provider=a.tags[0] if a.tags else "", meta=a.meta)
         for a in assets
     ]
+
+
+@router.get("/providers")
+def get_providers() -> dict:
+    """返回已注册的 Provider 列表 + 系统配置状态，供前端渲染生成表单。"""
+    providers = list_providers()
+    return {
+        "providers": providers,
+        "simulate_mode": settings.SIMULATE_MODE,
+        "llm_configured": bool(settings.LLM_API_KEY),
+        "ffmpeg_available": bool(
+            settings.FFMPEG_PATH
+            or __import__("shutil").which("ffmpeg") is not None
+        ),
+    }

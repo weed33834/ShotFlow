@@ -298,6 +298,10 @@ export type OutputType = "video" | "image_set" | "micro_movie" | "comic" | "vn";
 export interface GenerateRequest {
   nl_prompt: string;
   output_type: OutputType;
+  video_aspect?: string;
+  voice_name?: string;
+  subtitle_enabled?: boolean;
+  bgm_enabled?: boolean;
 }
 
 export interface GenerateResponse {
@@ -312,4 +316,12 @@ export interface ToolResult {
   url: string;
   provider: string;
   meta: Record<string, unknown>;
+}
+
+// Provider 配置状态
+export interface ProvidersConfig {
+  providers: string[];
+  simulate_mode: boolean;
+  llm_configured: boolean;
+  ffmpeg_available: boolean;
 }
