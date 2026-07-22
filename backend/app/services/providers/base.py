@@ -122,7 +122,9 @@ class BaseProvider:
         """
         import os
 
-        storage_root = Path(settings.STORAGE_DIR) if settings.STORAGE_DIR else Path(settings.PROJECT_ROOT) / "storage"
+        # STORAGE_DIR 空时兜底到项目根的 storage/ 目录
+        storage_dir = settings.STORAGE_DIR or str(Path(__file__).resolve().parents[4] / "storage")
+        storage_root = Path(storage_dir)
         task_dir = storage_root / "tasks" / (task_id or "default")
         task_dir.mkdir(parents=True, exist_ok=True)
         filename = f"{self.name}_{kind}_{int(time.time())}.{ext}"

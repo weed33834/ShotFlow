@@ -13,12 +13,13 @@ SIMULATE 模式兜底，无需 Key 即可验证全链路。
 
 import httpx
 
+from app.core.config import settings
 from app.services.providers.base import AssetResult, BaseProvider
 
 _JIMENG_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3"
-# 模型名以官方文档为准（即梦在方舟上的 endpoint id）
-_IMAGE_MODEL = "jimeng-image"   # 占位，实际为方舟 endpoint id
-_VIDEO_MODEL = "jimeng-video"  # 占位，实际为方舟 endpoint id
+# 默认模型名（方舟 endpoint id）；可通过 JIMENG_IMAGE_MODEL / JIMENG_VIDEO_MODEL 环境变量覆盖
+_IMAGE_MODEL = "jimeng-image"
+_VIDEO_MODEL = "jimeng-video"
 
 
 def _extract_video_url(d: dict) -> str:
@@ -38,6 +39,9 @@ class JimengProvider(BaseProvider):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.base_url = self.base_url or _JIMENG_BASE_URL
+        # 支持通过环境变量覆盖模型名（如指向 hcnsec 网关用 step-image-edit-2）
+        self.image_model = getattr(settings, "JIMENG_IMAGE_MODEL", "") or _IMAGE_MODEL
+        self.video_model = getattr(settings, "JIMENG_VIDEO_MODEL", "") or _VIDEO_MODEL
 
     async def generate(self, kind: str, params: dict) -> AssetResult:
         # 无 Key 或显式 SIMULATE：返回占位，保证全链路可验证
@@ -55,9 +59,12 @@ class JimengProvider(BaseProvider):
 
     async def _submit_image(self, params: dict) -> AssetResult:
         """文生图：OpenAI 兼容 /images/generations，下载到本地供下游 ffmpeg 读取。"""
+        import asyncio, logging
+        _log = logging.getLogger(__name__)
+
         prompt = params.get("prompt", "")
         body = {
-            "model": _IMAGE_MODEL,
+            "model": self.image_model,
             "prompt": prompt,
             "n": params.get("n", 1),
             "size": params.get("size", "1024x1024"),
@@ -66,31 +73,59 @@ class JimengProvider(BaseProvider):
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
-        async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.post(
-                f"{self.base_url}/images/generations", json=body, headers=headers
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            url = (data.get("data") or [{}])[0].get("url", "")
-            if not url:
+        # 最多重试 3 次，应对 429 限流
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                async with httpx.AsyncClient(timeout=60) as client:
+                    resp = await client.post(
+                        f"{self.base_url}/images/generations", json=body, headers=headers
+                    )
+                    if resp.status_code == 429:
+                        wait = 5 * (attempt + 1)
+                        _log.warning("图片生成被限流(429)，%ds 后重试 (%d/%d)", wait, attempt+1, max_retries)
+                        await asyncio.sleep(wait)
+                        continue
+                    resp.raise_for_status()
+                    data = resp.json()
+                    url = (data.get("data") or [{}])[0].get("url", "")
+                    if not url:
+                        return AssetResult(
+                            provider=self.name, url="",
+                            meta={"error": "no image url", "raw": data, **params},
+                        )
+                    local_path = self._download_asset(url, params.get("task_id", "") or "jimeng_img", "image", "png")
+                    return AssetResult(
+                        url=local_path,
+                        provider=self.name,
+                        meta={"kind": "image", "model": self.image_model, **params},
+                    )
+            except httpx.HTTPStatusError as exc:
+                _log.warning("图片生成 HTTP 错误: %s，尝试 %d/%d", exc, attempt+1, max_retries)
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(3)
+                    continue
                 return AssetResult(
                     provider=self.name, url="",
-                    meta={"error": "no image url", "raw": data, **params},
+                    meta={"error": f"HTTP {exc.response.status_code}", **params},
                 )
-            # 远程 url 落地到本地，下游 ffmpeg 需要本地路径拼接
-            local_path = self._download_asset(url, params.get("task_id", "") or "jimeng_img", "image", "png")
-            return AssetResult(
-                url=local_path,
-                provider=self.name,
-                meta={"kind": "image", "model": _IMAGE_MODEL, **params},
-            )
+            except Exception as exc:
+                _log.warning("图片生成异常: %s", exc)
+                return AssetResult(
+                    provider=self.name, url="",
+                    meta={"error": str(exc), **params},
+                )
+        # 所有重试用完
+        return AssetResult(
+            provider=self.name, url="",
+            meta={"error": "max retries exceeded (429)", **params},
+        )
 
     async def _submit_video(self, params: dict) -> AssetResult:
         """文生视频：提交方舟视频任务 → 轮询查询 → 下载。"""
         prompt = params.get("prompt", "")
         body = {
-            "model": _VIDEO_MODEL,
+            "model": self.video_model,
             "input": {"prompt": prompt},
             "parameters": {"duration": params.get("duration", 5)},
         }

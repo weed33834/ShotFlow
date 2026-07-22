@@ -195,9 +195,12 @@ async def assemble(req: AssembleReq, db) -> ToolResult:
         raise ValueError(msg)
 
     # 按类型分类：video/image → 拼接素材，audio → 配音/BGM
+    # 跳过 simulate:// 路径（失败的生成会返回占位路径）
     asset_paths: list[str] = []
     audio_candidates: list[str] = []
     for a in ordered_assets:
+        if a.path and a.path.startswith("simulate://"):
+            continue
         kind = classify_asset(a.asset_type, a.path)
         if kind == "audio":
             audio_candidates.append(a.path)

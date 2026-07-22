@@ -61,7 +61,7 @@ class Orchestrator:
         # S3 一致性锚定
         anchor_result = await svc.anchor(
             ToolGenerateReq(
-                provider="hunyuan_image",
+                provider=settings.ANCHOR_PROVIDER,
                 kind="anchor",
                 params={"prompt": spec_data["characters"][0]["anchor_prompt"]},
             ),
@@ -73,7 +73,7 @@ class Orchestrator:
         asset_ids: list[int] = []
         video_asset_ids: list[int] = []  # 视频资产 ID（供 lip_sync 使用）
         audio_asset_ids: list[int] = []  # 音频资产 ID（供 lip_sync 使用）
-        if anchor_result and anchor_result.asset_id:
+        if anchor_result and anchor_result.url and not anchor_result.url.startswith("simulate://"):
             asset_ids.append(anchor_result.asset_id)
 
         # S4 逐镜生成（image + video + audio）
@@ -85,26 +85,34 @@ class Orchestrator:
             for shot in scene["shots"]:
                 img_result = await svc.run_tool(
                     ToolGenerateReq(
-                        provider="hunyuan_image",
+                        provider=settings.IMAGE_PROVIDER,
                         kind="image",
                         params={"prompt": shot["image_prompt"]},
                     ),
                     db,
                     spec_id=spec.id,
                 )
-                if img_result and img_result.asset_id:
+                if img_result and img_result.url and not img_result.url.startswith("simulate://"):
                     asset_ids.append(img_result.asset_id)
+                elif img_result and img_result.asset_id:
+                    logger.warning("镜头 %d 图片生成失败(url=%s)，跳过该资产",
+                                   len(asset_ids), img_result.url[:50])
+
+                # 真实模式下镜头间延迟 2s，避免图片生成 API 限流
+                if not settings.SIMULATE_MODE:
+                    import asyncio as _aio
+                    await _aio.sleep(2)
 
                 vid_result = await svc.run_tool(
                     ToolGenerateReq(
-                        provider="wanx",
+                        provider=settings.VIDEO_PROVIDER,
                         kind="video",
                         params={"prompt": shot["video_prompt"], "duration": shot.get("duration", 5)},
                     ),
                     db,
                     spec_id=spec.id,
                 )
-                if vid_result and vid_result.asset_id:
+                if vid_result and vid_result.url and not vid_result.url.startswith("simulate://"):
                     asset_ids.append(vid_result.asset_id)
                     video_asset_ids.append(vid_result.asset_id)
 

@@ -118,9 +118,12 @@ class Settings(BaseSettings):
     KLING_API_KEY: str = ""
     KLING_BASE_URL: str = "https://api.piapi.ai"
 
-    # 即梦（字节火山引擎）
+    # 即梦（字节火山引擎 Ark）
     JIMENG_API_KEY: str = ""
     JIMENG_BASE_URL: str = "https://ark.cn-beijing.volces.com/api/v3"
+    # 可覆盖模型名（如指向其他 OpenAI 兼容网关时用 step-image-edit-2 等）
+    JIMENG_IMAGE_MODEL: str = ""
+    JIMENG_VIDEO_MODEL: str = ""
 
     # Runway
     RUNWAY_API_KEY: str = ""
@@ -155,6 +158,11 @@ class Settings(BaseSettings):
     # 留空则回退原始 OpenAI 兼容直连（向后兼容：依赖 LLM_BASE_URL + LLM_MODEL 显式配置）。
     # LLM_BASE_URL / LLM_MODEL 非空时覆盖对应 provider 的默认 base_url / model。
     LLM_PROVIDER: str = ""
+
+    # 编排器使用的默认 Provider（可通过 .env 覆盖切换厂商）
+    IMAGE_PROVIDER: str = "hunyuan_image"
+    VIDEO_PROVIDER: str = "wanx"
+    ANCHOR_PROVIDER: str = "hunyuan_image"
 
     # ===== 资产存储 =====
     # 真实模式下生成资产落地于此目录下（按 task_id 隔离）

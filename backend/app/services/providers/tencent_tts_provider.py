@@ -122,11 +122,8 @@ class TencentTtsProvider(BaseProvider):
                 )
             # 同步接口：base64 音频直接落盘到本地，避免返回 url="" 链路断裂
             audio_bytes = base64.b64decode(audio)
-            storage_root = (
-                Path(settings.STORAGE_DIR)
-                if settings.STORAGE_DIR
-                else Path(settings.PROJECT_ROOT) / "storage"
-            )
+            storage_dir = settings.STORAGE_DIR or str(Path(__file__).resolve().parents[4] / "storage")
+            storage_root = Path(storage_dir)
             task_dir = storage_root / "tasks" / (params.get("task_id", "") or "default")
             task_dir.mkdir(parents=True, exist_ok=True)
             local_path = task_dir / f"{self.name}_audio_{int(time.time())}.{codec}"
