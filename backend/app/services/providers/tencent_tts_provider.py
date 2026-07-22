@@ -33,7 +33,7 @@ _ACTION = "TextToVoice"
 
 def _tc_signature(secret_id: str, secret_key: str, payload: str, timestamp: int) -> str:
     """腾讯云 TC3-HMAC-SHA256 签名（与 hunyuan_image 同构）。"""
-    date = datetime.datetime.utcfromtimestamp(timestamp).strftime("%Y-%m-%d")
+    date = datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc).strftime("%Y-%m-%d")
     canonical_headers = f"content-type:application/json\nhost:{_TC_HOST}\n"
     signed_headers = "content-type;host"
     payload_hash = hashlib.sha256(payload.encode("utf-8")).hexdigest()
@@ -79,7 +79,7 @@ class TencentTtsProvider(BaseProvider):
 
         text = params.get("text", params.get("prompt", ""))
         timestamp = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
-        date = datetime.datetime.utcfromtimestamp(timestamp).strftime("%Y-%m-%d")
+        date = datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc).strftime("%Y-%m-%d")
         codec = params.get("codec", "mp3") or "mp3"
         body = {
             "Text": text,

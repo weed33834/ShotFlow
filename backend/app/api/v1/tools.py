@@ -1,7 +1,8 @@
 """工具路由：暴露给外部智能体（WorkBuddy / 元器 / 百炼 / Dify）直接驱动。
 
-这些路由同时是 MCP server 的底层能力来源（见 services/mcp_server.py）。
-"""
+这些路由同时是 MCP server 的底层能力来源（见 services/mcp_server.py）"""
+
+import shutil
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -78,7 +79,6 @@ def get_providers() -> dict:
         "simulate_mode": settings.SIMULATE_MODE,
         "llm_configured": bool(settings.LLM_API_KEY),
         "ffmpeg_available": bool(
-            settings.FFMPEG_PATH
-            or __import__("shutil").which("ffmpeg") is not None
+            settings.FFMPEG_PATH or shutil.which("ffmpeg") is not None
         ),
     }

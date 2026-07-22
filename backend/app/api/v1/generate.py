@@ -14,7 +14,16 @@ router = APIRouter(tags=["generate"])
 @router.post("")
 async def generate(req: GenerateReq, db: Session = Depends(get_db)):
     """接收一句话 + 产出类型，启动编排器（读 flow.sop + 脑补 + 调工具）。"""
-    spec_id = await Orchestrator().run(req.nl_prompt, req.output_type, db, req.project_id)
+    spec_id = await Orchestrator().run(
+        req.nl_prompt,
+        req.output_type,
+        db,
+        req.project_id,
+        video_aspect=req.video_aspect,
+        voice_name=req.voice_name,
+        subtitle_enabled=req.subtitle_enabled,
+        bgm_enabled=req.bgm_enabled,
+    )
     return {
         "spec_id": spec_id,
         "status": "simulated" if settings.SIMULATE_MODE else "generated",

@@ -19,7 +19,18 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
 class Orchestrator:
-    async def run(self, nl_prompt: str, output_type: str, db, project_id=None) -> int:
+    async def run(
+        self,
+        nl_prompt: str,
+        output_type: str,
+        db,
+        project_id=None,
+        *,
+        video_aspect: str = "",
+        voice_name: str = "",
+        subtitle_enabled: bool = True,
+        bgm_enabled: bool = True,
+    ) -> int:
         # 读流程文件（存在性校验，实际脑补见 _brain）
         flow_path = PROJECT_ROOT / "flows" / f"make_{output_type}.sop.md"
         if not flow_path.exists():
@@ -27,6 +38,15 @@ class Orchestrator:
 
         # S1+S2 意图识别 + 需求脑补（有 LLM Key 调 LLM；无 Key 回退硬编码模板）
         spec_data = await self._brain(nl_prompt, output_type)
+
+        # 用户前端选择的参数覆盖 spec 中的默认值
+        # voice_name 非空时覆盖所有镜头的 audio.voice，让用户能控制配音声音
+        if voice_name:
+            for scene in spec_data.get("scenes", []):
+                for shot in scene.get("shots", []):
+                    if isinstance(shot.get("audio"), dict):
+                        shot["audio"]["voice"] = voice_name
+
         spec = svc.save_spec(
             SpecSaveReq(
                 project_id=project_id,
@@ -100,9 +120,14 @@ class Orchestrator:
 
         # S5 组装成片
         # 有 edge-tts WordBoundary 时用精确时间轴，否则用 shot duration 估算
-        subtitles, subtitle_durations = self._build_subtitle_data(
-            spec_data, all_word_boundaries
-        )
+        # subtitle_enabled=False 时传空字幕列表，ffmpeg 跳过字幕烧录
+        if subtitle_enabled:
+            subtitles, subtitle_durations = self._build_subtitle_data(
+                spec_data, all_word_boundaries
+            )
+        else:
+            subtitles, subtitle_durations = [], []
+
         await svc.assemble(
             AssembleReq(
                 spec_id=spec.id,

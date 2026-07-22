@@ -120,7 +120,7 @@ class Settings(BaseSettings):
 
     # 即梦（字节火山引擎）
     JIMENG_API_KEY: str = ""
-    JIMENG_BASE_URL: str = "https://ark.cn-beijing.volces.com"
+    JIMENG_BASE_URL: str = "https://ark.cn-beijing.volces.com/api/v3"
 
     # Runway
     RUNWAY_API_KEY: str = ""
@@ -143,6 +143,9 @@ class Settings(BaseSettings):
     LLM_API_KEY: str = ""
     LLM_BASE_URL: str = ""
     LLM_MODEL: str = "gpt-4o-mini"
+    # LLM provider 名称（openai/claude/gemini/deepseek/moonshot/ollama），
+    # 供 llm_provider 注册表解析默认 model/base_url，空则用 LLM_API_KEY + LLM_BASE_URL 直连
+    LLM_PROVIDER: str = ""
 
     # ===== 资产存储 =====
     # 真实模式下生成资产落地于此目录下（按 task_id 隔离）

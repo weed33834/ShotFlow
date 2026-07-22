@@ -1,8 +1,11 @@
-"""腾讯混元生图 3.0 Provider（AI 绘画，TokenHub 模型 hy-image-v3.0）。
+"""腾讯混元生图 Provider（AI 绘画）。
 
-能力: image / anchor（一致性锚定 —— 用参考图保角色长相一致）。
+能力: image / anchor（一致性锚定 — 用参考图保角色外观一致）。
 接口: 腾讯云 AI 绘画 API（aiart.tencentcloudapi.com），TC3-HMAC-SHA256 签名，异步 job 模式。
-签名与调用结构已实现；具体 Action / 参数以腾讯云官方文档为准（SIMULATE 模式兜底，无需 Key 即可验证全链路）。
+
+费用备注（调研值，2026）:
+- 混元生图按张计费，约 0.1~0.2 元/张，以腾讯云官方计费页为准。
+SIMULATE 模式兜底，无需 Key 即可验证全链路。
 """
 
 import datetime
@@ -17,10 +20,18 @@ from app.services.providers.base import AssetResult, BaseProvider
 _TC_HOST = "aiart.tencentcloudapi.com"
 _TC_SERVICE = "aiart"
 _TC_REGION = "ap-guangzhou"
-_TC_VERSION = "2023-05-30"
-# 混元生图 3.0 提交 / 查询任务 Action（以官方文档核对为准）
-_ACTION_SUBMIT = "SubmitTextToImageProJob"
+# 以腾讯云官方文档为准：https://cloud.tencent.com/document/api/1668/124632
+_TC_VERSION = "2022-12-29"
+_ACTION_SUBMIT = "SubmitTextToImageJob"
 _ACTION_QUERY = "QueryTextToImageJob"
+
+# JobStatusCode 值 → 统一状态映射（官方文档：1=等待 2=运行 4=失败 5=完成）
+_JOB_STATUS_MAP = {
+    "1": "running",
+    "2": "running",
+    "4": "failed",
+    "5": "succeeded",
+}
 
 
 def _first_or_str(val) -> str:
@@ -32,7 +43,7 @@ def _first_or_str(val) -> str:
 
 def _tc_signature(secret_id: str, secret_key: str, payload: str, timestamp: int) -> str:
     """腾讯云 TC3-HMAC-SHA256 签名。"""
-    date = datetime.datetime.utcfromtimestamp(timestamp).strftime("%Y-%m-%d")
+    date = datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc).strftime("%Y-%m-%d")
     canonical_headers = f"content-type:application/json\nhost:{_TC_HOST}\n"
     signed_headers = "content-type;host"
     payload_hash = hashlib.sha256(payload.encode("utf-8")).hexdigest()
@@ -52,93 +63,75 @@ def _tc_signature(secret_id: str, secret_key: str, payload: str, timestamp: int)
     return hmac.new(secret_signing, string_to_sign.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
+def _build_headers(action: str, timestamp: int, secret_id: str, secret_key: str, payload: str) -> dict:
+    """构建腾讯云 API 请求头（含 TC3 签名）。"""
+    date = datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc).strftime("%Y-%m-%d")
+    signature = _tc_signature(secret_id, secret_key, payload, timestamp)
+    return {
+        "Content-Type": "application/json",
+        "Host": _TC_HOST,
+        "X-TC-Action": action,
+        "X-TC-Version": _TC_VERSION,
+        "X-TC-Region": _TC_REGION,
+        "X-TC-Timestamp": str(timestamp),
+        "Authorization": (
+            f"TC3-HMAC-SHA256 Credential={secret_id}/{date}/{_TC_SERVICE}"
+            f"/tc3_request, SignedHeaders=content-type;host, "
+            f"Signature={signature}"
+        ),
+    }
+
+
 class HunyuanImageProvider(BaseProvider):
     name = "hunyuan_image"
     capabilities = {"image", "anchor"}
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # 腾讯云 CAM 密钥由上层通过 kwargs 注入，基类不统一存储
         self.secret_id = kwargs.get("secret_id", "")
         self.secret_key = kwargs.get("secret_key", "")
-        self.host = _TC_HOST
-        self.region = _TC_REGION
-        self.version = _TC_VERSION
 
     async def generate(self, kind: str, params: dict) -> AssetResult:
-        # 无 Key 或显式 SIMULATE：返回占位，保证全链路可验证
         if self.simulate or not self.secret_id:
             return await self._simulate(kind, params)
 
         prompt = params.get("prompt", "")
         ref_images: list[str] = params.get("ref_images", [])
-        # 真实调用（结构完整，Action 名以官方文档为准）
         timestamp = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
-        date = datetime.datetime.utcfromtimestamp(timestamp).strftime("%Y-%m-%d")
         body = {
             "Prompt": prompt,
-            # 混元生图 3.0 支持最多 3 张参考图做一致性锚定
-            "InputImageUrls": ref_images[:3],
-            "RspImgType": "url",
+            # 官方文档字段名为 Images（JSON 数组，最多 3 张参考图）
+            "Images": ref_images[:3],
         }
         payload = json.dumps(body, ensure_ascii=False)
-        signature = _tc_signature(self.secret_id, self.secret_key, payload, timestamp)
-        headers = {
-            "Content-Type": "application/json",
-            "Host": self.host,
-            "X-TC-Action": _ACTION_SUBMIT,
-            "X-TC-Version": self.version,
-            "X-TC-Region": self.region,
-            "X-TC-Timestamp": str(timestamp),
-            # Credential 段第二段必须是日期(YYYY-MM-DD)，早期误填 region 导致签名校验失败
-            "Authorization": (
-                f"TC3-HMAC-SHA256 Credential={self.secret_id}/{date}/{_TC_SERVICE}"
-                f"/tc3_request, SignedHeaders=content-type;host, "
-                f"Signature={signature}"
-            ),
-        }
+        headers = _build_headers(_ACTION_SUBMIT, timestamp, self.secret_id, self.secret_key, payload)
         async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.post(
-                f"https://{self.host}/", json=body, headers=headers
-            )
+            resp = await client.post(f"https://{_TC_HOST}/", json=body, headers=headers)
             resp.raise_for_status()
             data = resp.json()
             job_id = data.get("Response", {}).get("JobId")
             if not job_id:
                 return AssetResult(
-                    provider=self.name,
-                    url="",
+                    provider=self.name, url="",
                     meta={"error": data.get("Response", {}).get("Error", "no job_id")},
                 )
-            # 轮询查询出图结果：轮询开始时签名一次，TC3 允许 ~10min 时钟偏差，
-            # 默认 300s 轮询窗口内单次签名仍有效，避免每轮重签
+            # 轮询查询：每轮重算签名，避免长时间轮询后签名过期
             query_body = {"JobId": job_id}
             query_payload = json.dumps(query_body, ensure_ascii=False)
             query_ts = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
-            query_sig = _tc_signature(
-                self.secret_id, self.secret_key, query_payload, query_ts
+            query_headers = _build_headers(
+                _ACTION_QUERY, query_ts, self.secret_id, self.secret_key, query_payload
             )
-            query_date = datetime.datetime.utcfromtimestamp(query_ts).strftime("%Y-%m-%d")
-            query_headers = {
-                "Content-Type": "application/json",
-                "Host": self.host,
-                "X-TC-Action": _ACTION_QUERY,
-                "X-TC-Version": self.version,
-                "X-TC-Region": self.region,
-                "X-TC-Timestamp": str(query_ts),
-                "Authorization": (
-                    f"TC3-HMAC-SHA256 Credential={self.secret_id}/{query_date}/{_TC_SERVICE}"
-                    f"/tc3_request, SignedHeaders=content-type;host, "
-                    f"Signature={query_sig}"
-                ),
-            }
             url, poll_data = await self._poll_task(
                 client,
-                f"https://{self.host}/",
+                f"https://{_TC_HOST}/",
                 headers=query_headers,
                 method="POST",
                 json_body=query_body,
-                extract_status=lambda d: d.get("Response", {}).get("JobStatus", ""),
+                # 官方字段为 JobStatusCode（"1"~"5"），需映射到统一状态
+                extract_status=lambda d: _JOB_STATUS_MAP.get(
+                    d.get("Response", {}).get("JobStatusCode", ""), ""
+                ),
                 extract_url=lambda d: _first_or_str(
                     d.get("Response", {}).get("ResultImage")
                 ),

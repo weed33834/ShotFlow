@@ -54,7 +54,7 @@ class JimengProvider(BaseProvider):
         )
 
     async def _submit_image(self, params: dict) -> AssetResult:
-        """文生图：OpenAI 兼容 /images/generations。"""
+        """文生图：OpenAI 兼容 /images/generations，下载到本地供下游 ffmpeg 读取。"""
         prompt = params.get("prompt", "")
         body = {
             "model": _IMAGE_MODEL,
@@ -73,8 +73,16 @@ class JimengProvider(BaseProvider):
             resp.raise_for_status()
             data = resp.json()
             url = (data.get("data") or [{}])[0].get("url", "")
+            if not url:
+                return AssetResult(
+                    provider=self.name, url="",
+                    meta={"error": "no image url", "raw": data, **params},
+                )
+            # 远程 url 落地到本地，下游 ffmpeg 需要本地路径拼接
+            local_path = self._download_asset(url, params.get("task_id", "") or "jimeng_img", "image", "png")
             return AssetResult(
-                provider=self.name, url=url,
+                url=local_path,
+                provider=self.name,
                 meta={"kind": "image", "model": _IMAGE_MODEL, **params},
             )
 

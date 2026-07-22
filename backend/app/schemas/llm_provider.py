@@ -184,11 +184,14 @@ def normalize_provider_override(raw: Optional[str]) -> tuple[Optional[str], Opti
 def get_active_provider_spec() -> Optional[LLMProviderSpec]:
     """从 .env 读取当前活跃的 LLM provider 规格。
 
-    读取顺序：LLM_PROVIDER 环境变量 > settings.LLM_PROVIDER > 默认 "openai"。
+    读取顺序：LLM_PROVIDER 环境变量 > settings.LLM_PROVIDER > None。
+    返回 None 表示未配置 provider，调用方应回退到 LLM_API_KEY + LLM_BASE_URL 直连。
     """
     try:
         from app.core.config import settings
-        provider = os.getenv("LLM_PROVIDER") or settings.LLM_PROVIDER or "openai"
+        provider = os.getenv("LLM_PROVIDER") or getattr(settings, "LLM_PROVIDER", "") or ""
     except ImportError:
-        provider = os.getenv("LLM_PROVIDER", "openai")
+        provider = os.getenv("LLM_PROVIDER", "")
+    if not provider:
+        return None
     return get_provider_spec(provider)
