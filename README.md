@@ -1,16 +1,16 @@
 # ShotFlow
 
-> Flow-file-driven AIGC orchestration platform — AI video generation with cinematic prompts, FFmpeg advanced pipeline, and open-source AI alternatives. External agents read SOP definitions and call vendor-agnostic generation tools — no hardcoded brain, full reproducibility.
+[English](README.md) | [中文](README.zh.md) | [日本語](README.ja.md)
 
-**Keywords**: AI video generation, text-to-video, AIGC, AI orchestration, cinematic AI, FFmpeg, MCP, FastAPI, React, edge-tts, Real-ESRGAN, RIFE, GPT-SoVITS, FunASR, voice cloning, text-to-speech, AI filmmaking, automated video production
+> Flow-file-driven AIGC orchestration platform. External agents read SOP definitions and call vendor-agnostic generation tools — no hardcoded brain, full reproducibility.
 
 [![CI](https://github.com/weed33834/ShotFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/weed33834/ShotFlow/actions/workflows/ci.yml)
-[![License: CNCL-1.0](https://img.shields.io/badge/License-CNCL--1.0-yellow.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Node 22+](https://img.shields.io/badge/node-22+-green.svg)](https://nodejs.org/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-English · [中文](README.zh-CN.md) · [日本語](README.ja.md)
+**Keywords**: AI video generation, text-to-video, AIGC, AI orchestration, cinematic AI, FFmpeg, MCP, FastAPI, React, edge-tts, Real-ESRGAN, RIFE, GPT-SoVITS, FunASR, voice cloning, text-to-speech, AI filmmaking, automated video production
 
 ---
 
@@ -33,23 +33,23 @@ English · [中文](README.zh-CN.md) · [日本語](README.ja.md)
 
 ## What is ShotFlow
 
-ShotFlow is an **AIGC (AI-Generated Content) orchestration platform** designed
-around a simple idea: separate the *what* from the *how*.
+ShotFlow is an **AIGC (AI-Generated Content) orchestration platform** built on a
+single principle: separate the *what* from the *how*.
 
-Instead of embedding generation logic into a monolithic pipeline, ShotFlow
-provides:
+Rather than embedding generation logic in a monolithic pipeline, ShotFlow
+provides three components:
 
 1. **SOP flow files** — Markdown documents that define, step by step, how to
-   produce a specific output type (video, image set, comic, micro-movie,
-   visual novel).
-2. **Vendor-agnostic generation tools** — Exposed via both REST API and
+   produce a given output type (video, image set, comic, micro-movie, visual
+   novel).
+2. **Vendor-agnostic generation tools** — Exposed through both a REST API and
    MCP (Model Context Protocol), so any agent framework can call them.
-3. **11 cloud provider integrations** — From Tencent Hunyuan to Runway,
-   HeyGen, and NovelAI, all behind a uniform `BaseProvider` interface.
+3. **13 provider integrations** — From Tencent Hunyuan to Runway, HeyGen, and
+   NovelAI, all behind a uniform `BaseProvider` interface.
 
-External agents — whether WorkBuddy, Tencent Yuanqi, Alibaba Bailian, or
-Dify — read the SOP flow files and drive the tools. ShotFlow never hardcodes
-a "brain"; it gives agents the tools and instructions they need to act.
+External agents — WorkBuddy, Tencent Yuanqi, Alibaba Bailian, or Dify — read
+the SOP flow files and drive the tools. ShotFlow does not hardcode a "brain"; it
+supplies the tools and the instructions agents need to act.
 
 ---
 
@@ -66,9 +66,9 @@ graph TB
 
     subgraph ShotFlow["ShotFlow Platform"]
         MC["📡 MCP Server<br/>6 tools · JSON-RPC 2.0"]
-        API["🌐 REST API<br/>7 endpoints · OpenAPI 3.0"]
+        API["🌐 REST API<br/>OpenAPI 3.0"]
         OR["⚙️ Orchestrator<br/>Reads SOP · Calls providers"]
-        FL["📋 SOP Flow Files<br/>make_video.sop.md<br/>make_image_set.sop.md<br/>make_comic.sop.md<br/>make_micro_movie.sop.md<br/>make_vn.sop.md"]
+        FL["📋 SOP Flow Files<br/>make_video.sop.md<br/>make_image_set.sop.md<br/>make_comic.sop.md<br/>make_micro_movie.sop.md<br/>make_vn.sop.md<br/>make_nailong_video.sop.md"]
     end
 
     subgraph Providers["Vendor Provider Layer"]
@@ -103,42 +103,42 @@ graph TB
 ### Core Design
 
 - **Flow-file driven**: Every production pipeline is defined as an SOP Markdown
-  file. Change the SOP to change the output — no code changes needed.
-- **No hardcoded brain**: ShotFlow provides tools, not opinions. External
+  file. Change the SOP to change the output — no code changes required.
+- **No hardcoded brain**: ShotFlow provides tools, not decisions. External
   agents read the SOP and orchestrate independently.
-- **SIMULATE mode**: Develop and test the full pipeline without GPU or API
+- **SIMULATE mode**: Develop and test the full pipeline without a GPU or API
   credentials. All providers return placeholder assets.
 
 ### Cinematic Prompt System
 
 - **13 style presets**: cinematic, cyberpunk, anime, ink_wash, ghibli,
   oil_painting, realistic, watercolor, documentary, wes_anderson, scifi,
-  fantasy, noir — each injects professional image/video suffixes and
-  negative prompts into LLM system prompts.
+  fantasy, noir — each injects professional image/video suffixes and negative
+  prompts into the LLM system prompt.
 - **10 scene templates**: product, food, travel, knowledge, story, city,
   nature, action, interview, tutorial — each defines shot rhythm, shot
   sequence, lighting, and transition style.
-- **Cinematic keyword library**: 15 lighting types, 15 camera angles, 15
-  camera movements, 15 mood keywords — randomly sampled to enrich
-  fallback prompts when no LLM is configured.
-- **Quality levels**: standard (1080p), hd (1080p+ bokeh), 4k (4K HDR ACES),
-  8k (8K HDR Dolby Vision) — controls technical parameters in prompts.
+- **Cinematic keyword library**: 15 lighting types, 15 camera angles, 15 camera
+  movements, and 15 mood keywords — sampled to enrich fallback prompts when no
+  LLM is configured.
+- **Quality levels**: standard (1080p), hd (1080p + bokeh), 4k (4K HDR ACES),
+  8k (8K HDR Dolby Vision) — controls technical parameters embedded in prompts.
 
 ### Advanced Video Pipeline (FFmpeg)
 
 - **xfade transitions**: 13 effects (fade, wipeleft, circleopen, distance,
-  zoomin, etc.) for smooth cross-dissolves between segments.
-- **Ken Burns effect**: zoompan filter for static images — slow zoom-in/out
+  zoomin, smoothup, etc.) for cross-dissolves between segments.
+- **Ken Burns effect**: a zoompan filter for static images — slow zoom in/out
   with alternating directions for visual variety.
 - **Color grading**: 5 presets (vintage, cross_process, teal_orange,
-  high_contrast, warm_film) using FFmpeg curves + eq filters.
-- **60s+ long video**: xfade chain with offset calculation supports
+  high_contrast, warm_film) via FFmpeg `curves` + `eq` filters.
+- **60s+ long video**: an xfade chain with offset calculation supports an
   unlimited segment count for coherent long-form output.
 
 ### Open-Source AI Alternatives
 
-All open-source tools gracefully degrade — if not installed, the pipeline
-logs a warning and continues without crashing.
+Every open-source tool degrades gracefully — if it is not installed, the
+pipeline logs a warning and continues without crashing.
 
 | Feature | Commercial | Open-Source Alternative |
 |---|---|---|
@@ -149,25 +149,26 @@ logs a warning and continues without crashing.
 
 ### Provider Support
 
-- **13 cloud + open-source providers** integrated behind a uniform `BaseProvider` ABC.
-- **MCP + REST dual exposure**: Both protocols available for maximum
+- **13 providers** integrated behind a uniform `BaseProvider` ABC (12 cloud +
+  1 open-source).
+- **MCP + REST dual exposure**: Both protocols are available for broad
   agent-framework compatibility.
-- **Easy to extend**: Add a new provider by implementing `generate(kind, params)`
+- **Easy to extend**: Add a provider by implementing `generate(kind, params)`
   and registering it in `app/services/providers/__init__.py`.
 
 ### Reproducibility
 
 - Every generation step saves a complete `Spec` record to the database,
   capturing parameters, provider, and output asset references.
-- Results can be re-examined, compared, and re-ran.
-- Changelog and version control for the entire project.
+- Results can be re-examined, compared, and re-run.
+- The project ships a changelog and full version control.
 
 ### Agent Ecosystem Ready
 
-- **WorkBuddy skill**: `shotflow-driver` lets you generate a video with a
-  single sentence.
-- **MCP manifest**: Drop `integration/shotflow.mcp.json` into any MCP client
-  to discover all 6 tools instantly.
+- **WorkBuddy skill**: `shotflow-driver` generates a video from a single
+  sentence.
+- **MCP manifest**: Drop `integration/shotflow.mcp.json` into any MCP client to
+  discover all 6 tools.
 - **OpenAPI spec**: Import `integration/openapi.json` into code generators
   (OpenAPI Generator, Postman, etc.).
 
@@ -191,7 +192,7 @@ logs a warning and continues without crashing.
 | CosyVoice | Voice Cloning | ✅ | API Key |
 | GPT-SoVITS | Voice Cloning (Open-Source) | ✅ | Local API URL |
 
-All providers support `SIMULATE_MODE=true` — set this in `.env` to test the
+All providers support `SIMULATE_MODE=true` — set this in `.env` to exercise the
 full pipeline without any keys.
 
 ---
@@ -210,7 +211,7 @@ docker compose up -d
 - Backend API: http://localhost:8000
 - API Docs: http://localhost:8000/docs
 
-SIMULATE_MODE is enabled by default — no API keys needed.
+`SIMULATE_MODE` is enabled by default — no API keys required.
 
 ### Option B: Local Development
 
@@ -267,8 +268,8 @@ curl -X POST http://localhost:8000/api/v1/generate \
   }'
 ```
 
-This runs the `make_video.sop.md` workflow in SIMULATE mode and returns a
-spec ID with placeholder asset URLs.
+This runs the `make_video.sop.md` workflow in SIMULATE mode and returns a spec
+ID with placeholder asset URLs.
 
 ### 5. Verify MCP Server
 
@@ -283,8 +284,8 @@ stdio-based agent communication.
 
 ## Production Workflows
 
-Each workflow is defined as an SOP Markdown file in `flows/`. Below are
-the available flows and their step sequences.
+Each workflow is defined as an SOP Markdown file in `flows/`. The available
+flows and their step sequences are listed below.
 
 ### Video Production (`flows/make_video.sop.md`)
 
@@ -350,22 +351,22 @@ flowchart LR
 
 ## MCP Tool Reference
 
-ShotFlow exposes 6 tools via its MCP server (`app.services.mcp_server`).
+ShotFlow exposes 6 tools through its MCP server (`app.services.mcp_server`).
 
 | Tool | Description | Parameters |
 |---|---|---|
-| `consistency_anchor` | Generate a character-consistency anchor image from a prompt | `prompt: str` |
-| `generate_image` | Generate an image via a named provider | `provider, prompt, size, ...` |
-| `generate_video` | Generate a video from text or an input image | `provider, prompt, image?, seconds, ...` |
-| `generate_audio` | Generate audio (TTS) from text | `provider, text, voice?` |
+| `consistency_anchor` | Generate a character-consistency anchor image from a prompt | `provider, prompt, reference_images?` |
+| `generate_image` | Generate an image via a named provider | `provider, prompt, ref_images?, params?` |
+| `generate_video` | Generate a video from text or an input image | `provider, prompt, image_urls?, duration, params?` |
+| `generate_audio` | Generate audio (TTS) from text | `provider, text, voice?, audio_type?` |
 | `lip_sync` | Sync audio with a talking-head video | `provider, video_url, audio_url` |
-| `assemble` | Combine assets into a final output | `shots: list[ShotAssets], output_type` |
+| `assemble` | Combine assets into a final output | `spec_id?, asset_ids?, subtitles?` |
 
 ### MCP Transport
 
-The server listens on **stdio** by default (standard MCP transport). To connect
-with a streamable HTTP transport, configure your MCP client to proxy through
-the ShotFlow REST API or use an SSE bridge.
+The server listens on **stdio** by default (standard MCP transport). To use a
+streamable HTTP transport, configure your MCP client to proxy through the
+ShotFlow REST API or use an SSE bridge.
 
 ### MCP Manifest
 
@@ -374,12 +375,12 @@ Use `integration/shotflow.mcp.json` for zero-configuration discovery:
 ```json
 {
   "mcpServers": {
-    "shotflow": {
+    "ShotFlow": {
       "command": "python",
       "args": ["-m", "app.services.mcp_server"],
-      "cwd": "/path/to/shotflow",
       "env": {
-        "PYTHONPATH": "backend"
+        "PYTHONPATH": "backend",
+        "SIMULATE_MODE": "true"
       }
     }
   }
@@ -413,7 +414,7 @@ and returns the final assembled output.
 
 - Full OpenAPI 3.0 spec: `integration/openapi.json`
 - Base URL: `http://localhost:8000/api/v1`
-- Endpoints: `/generate`, `/anchor`, `/assemble`, `/spec`, `/tools/assets`
+- Key endpoints: `/generate`, `/anchor`, `/assemble`, `/spec`, `/tools/assets`
 
 ### Edge Deployment
 
@@ -434,11 +435,12 @@ shotflow/
 ├── backend/
 │   ├── app/
 │   │   ├── api/v1/           # REST endpoints
-│   │   ├── core/             # Config, database
+│   │   ├── core/             # Config, security
 │   │   ├── models/           # SQLAlchemy models
+│   │   ├── prompts/          # Cinematic style/scene/keyword libraries
 │   │   ├── schemas/          # Pydantic schemas
 │   │   └── services/
-│   │       ├── providers/    # 11 vendor integrations
+│   │       ├── providers/    # 13 provider integrations
 │   │       ├── mcp_server.py # MCP tool definitions
 │   │       ├── orchestrator.py
 │   │       └── tools_service.py
@@ -455,7 +457,8 @@ shotflow/
 │   ├── make_image_set.sop.md
 │   ├── make_comic.sop.md
 │   ├── make_micro_movie.sop.md
-│   └── make_vn.sop.md
+│   ├── make_vn.sop.md
+│   └── make_nailong_video.sop.md
 ├── integration/              # Exposure package
 │   ├── shotflow.mcp.json
 │   ├── openapi.json
@@ -473,10 +476,10 @@ shotflow/
 
 **Q: Does ShotFlow require a GPU?**
 A: No. All generation is offloaded to cloud vendor APIs. For development and
-testing, SIMULATE mode returns placeholder assets without any GPU or keys.
+testing, SIMULATE mode returns placeholder assets without a GPU or keys.
 
 **Q: Can I add my own provider?**
-A: Yes. Create a new class inheriting from `BaseProvider`, implement
+A: Yes. Create a class inheriting from `BaseProvider`, implement
 `generate(kind, params)` returning `AssetResult`, and register it in
 `app/services/providers/__init__.py`.
 
@@ -500,7 +503,7 @@ the [Code of Conduct](CODE_OF_CONDUCT.md) before submitting a pull request.
 ## License
 
 ShotFlow is open source under the **MIT License**. See [LICENSE](LICENSE) for
-full text.
+the full text.
 
 ---
 
